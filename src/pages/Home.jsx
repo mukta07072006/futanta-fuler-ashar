@@ -217,11 +217,11 @@ export default function Home() {
           </>
         ) : (
           // Fallback when no slider data: show only the hero image
-          <div className="h-full w-full">
+          <div className="h-full w-full flex items-center justify-center bg-slate-100">
             <img
               src={heroImage}
               alt="নজরুল অলিম্পিয়াড"
-              className="w-full h-full object-cover"
+              className="max-h-full max-w-full object-contain sm:object-cover object-center"
               loading="eager"
             />
           </div>
