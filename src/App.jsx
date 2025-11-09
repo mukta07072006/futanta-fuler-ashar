@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import Home from './pages/Home'
@@ -8,15 +8,17 @@ import Library from './pages/Library'
 import Events from './pages/Events'
 import Blog from './pages/Blog'
 import Media from './pages/Media'
-import Contact from './pages/Contact'
+import Notice from './pages/Notice'
 import AdminDashboard from './pages/AdminDashboard'
 import Login from './pages/Login'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
+  const location = useLocation()
+  const isLoginPage = location.pathname === '/login'
   return (
     <div className="min-h-screen bg-background text-text font-bangla">
-      <Navbar />
+      {!isLoginPage && <Navbar />}
       <main className="container py-8">
         <Routes>
           <Route path="/" element={<Home />} />
@@ -26,19 +28,12 @@ function App() {
           <Route path="/events" element={<Events />} />
           <Route path="/blog/*" element={<Blog />} />
           <Route path="/media" element={<Media />} />
-          <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute>
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/notice" element={<Notice />} />
         </Routes>
       </main>
-      <Footer />
+      {!isLoginPage && <Footer />}
     </div>
   )
 }

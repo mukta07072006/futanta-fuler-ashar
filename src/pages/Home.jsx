@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { getList } from '../services/api';
 import CountdownTimer from '../components/CountdownTimer';
 import { NavLink } from 'react-router-dom';
+import heroImage from '../assets/NO.jpg';
 
-// Firebase collection names
-const SLIDER_COLLECTION = 'sliders';
-const NOTICES_COLLECTION = 'notices';
-const PUBLICATIONS_COLLECTION = 'publications';
+// Data keys
+const NOTICES_KEY = 'notices';
+const PUBLICATIONS_KEY = 'library';
 
 export default function Home() {
   const [sliderData, setSliderData] = useState([]);
@@ -20,58 +19,34 @@ export default function Home() {
   const nextEvent = new Date();
   nextEvent.setMonth(nextEvent.getMonth() + 1);
 
-  // Fetch slider data from Firebase
+  // Slider: keep fallback hero until a dedicated endpoint exists
   const fetchSliderData = async () => {
-    try {
-      const q = query(
-        collection(db, SLIDER_COLLECTION),
-        orderBy('order', 'asc'),
-        limit(5)
-      );
-      const querySnapshot = await getDocs(q);
-      const sliders = [];
-      querySnapshot.forEach((doc) => {
-        sliders.push({ id: doc.id, ...doc.data() });
-      });
-      setSliderData(sliders);
-    } catch (error) {
-      console.error('Error fetching slider data:', error);
-    }
+    setSliderData([]);
   };
 
-  // Fetch notices from Firebase
+  // Fetch notices from REST API
   const fetchNotices = async () => {
     try {
-      const q = query(
-        collection(db, NOTICES_COLLECTION),
-        orderBy('date', 'desc'),
-        limit(4)
-      );
-      const querySnapshot = await getDocs(q);
-      const noticesData = [];
-      querySnapshot.forEach((doc) => {
-        noticesData.push({ id: doc.id, ...doc.data() });
-      });
-      setNotices(noticesData);
+      const list = await getList(NOTICES_KEY);
+      const sorted = list
+        .map(it => ({ id: it._id || it.id, ...it }))
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 4);
+      setNotices(sorted);
     } catch (error) {
       console.error('Error fetching notices:', error);
     }
   };
 
-  // Fetch publications from Firebase
+  // Fetch publications (library items) from REST API
   const fetchPublications = async () => {
     try {
-      const q = query(
-        collection(db, PUBLICATIONS_COLLECTION),
-        orderBy('createdAt', 'desc'),
-        limit(4)
-      );
-      const querySnapshot = await getDocs(q);
-      const publicationsData = [];
-      querySnapshot.forEach((doc) => {
-        publicationsData.push({ id: doc.id, ...doc.data() });
-      });
-      setPublications(publicationsData);
+      const list = await getList(PUBLICATIONS_KEY);
+      const sorted = list
+        .map(it => ({ id: it._id || it.id, ...it }))
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(0, 4);
+      setPublications(sorted);
     } catch (error) {
       console.error('Error fetching publications:', error);
     }
@@ -141,8 +116,8 @@ export default function Home() {
 
   return (
     <div className="space-y-8 md:space-y-12 px-3 sm:px-4 md:px-6">
-      {/* Hero Slider Section - Mobile Optimized */}
-      <section className="relative h-[50vh] sm:h-[55vh] md:h-[60vh] min-h-[400px] sm:min-h-[450px] md:min-h-[500px] rounded-lg md:rounded-xl overflow-hidden bg-slate-100">
+      {/* Hero Slider Section - Rectangular Ratio */}
+      <section className="relative h-[40vh] sm:h-[50vh] md:h-[60vh] lg:h-[70vh] rounded-lg md:rounded-xl overflow-hidden bg-slate-100">
         {sliderData.length > 0 ? (
           <>
             {/* Slides */}
@@ -168,21 +143,21 @@ export default function Home() {
                       loading="eager"
                     />
                   )}
-                  <div className="absolute inset-0 z-20 flex items-center">
-                    <div className="container mx-auto px-4 sm:px-6">
-                      <div className="max-w-2xl text-white text-center md:text-left">
-                        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 leading-tight">
+                  <div className="absolute inset-0 z-20 flex items-center justify-center">
+                    <div className="container mx-auto px-4 sm:px-6 text-center">
+                      <div className="max-w-3xl mx-auto text-white">
+                        <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4 leading-tight">
                           {slide.title}
                         </h1>
-                        <p className="text-sm sm:text-base md:text-lg lg:text-xl mb-4 sm:mb-6 md:mb-8 text-slate-100 px-2 sm:px-0">
+                        <p className="text-sm sm:text-lg md:text-xl lg:text-2xl mb-4 sm:mb-6 md:mb-8 text-slate-100 px-2 sm:px-0">
                           {slide.subtitle}
                         </p>
                         <NavLink
                           to={slide.ctaLink || "/membership"}
-                          className="inline-flex items-center px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all duration-300 shadow-md text-sm sm:text-base"
+                          className="inline-flex items-center px-5 sm:px-6 md:px-8 py-2.5 sm:py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all duration-300 shadow-md text-sm sm:text-base md:text-lg"
                         >
                           {slide.cta || "এখনই যোগ দিন"}
-                          <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                           </svg>
                         </NavLink>
@@ -198,37 +173,35 @@ export default function Home() {
               <>
                 <button
                   onClick={prevSlide}
-                  className="hidden sm:flex absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 z-30 bg-white/80 hover:bg-white text-slate-800 p-1.5 md:p-2 rounded-full transition-all duration-300 shadow-lg"
+                  className="hidden sm:flex absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 z-30 bg-white/80 hover:bg-white text-slate-800 p-2 md:p-3 rounded-full transition-all duration-300 shadow-lg"
                   aria-label="Previous slide"
                 >
-                  <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
                 <button
                   onClick={nextSlide}
-                  className="hidden sm:flex absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 z-30 bg-white/80 hover:bg-white text-slate-800 p-1.5 md:p-2 rounded-full transition-all duration-300 shadow-lg"
+                  className="hidden sm:flex absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 z-30 bg-white/80 hover:bg-white text-slate-800 p-2 md:p-3 rounded-full transition-all duration-300 shadow-lg"
                   aria-label="Next slide"
                 >
-                  <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
               </>
             )}
 
-            {/* Slider Indicators - Mobile optimized */}
+            {/* Slider Indicators */}
             {sliderData.length > 1 && (
-              <div className="absolute bottom-3 sm:bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 z-30 flex space-x-1.5 sm:space-x-2">
+              <div className="absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 z-30 flex space-x-2 sm:space-x-3">
                 {sliderData.map((_, index) => (
                   <button
                     key={index}
                     onClick={() => setCurrentSlide(index)}
-                    className={`transition-all duration-300 ${
-                      index === currentSlide 
-                        ? 'w-6 sm:w-8 bg-white' 
-                        : 'w-2 sm:w-3 bg-white/50'
-                    } h-2 rounded-full`}
+                    className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full transition-all duration-300 ${
+                      index === currentSlide ? 'bg-white' : 'bg-white/50'
+                    }`}
                     aria-label={`Go to slide ${index + 1}`}
                   />
                 ))}
@@ -243,18 +216,14 @@ export default function Home() {
             )}
           </>
         ) : (
-          // Fallback when no slider data
-          <div className="h-full flex items-center justify-center bg-green-600">
-            <div className="text-center text-white px-4">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4">ফুটন্ত ফুলের আসর</h1>
-              <p className="text-sm sm:text-base md:text-lg mb-4 sm:mb-6 md:mb-8">শিশু কিশোরদের আদর্শ নাগরিক হিসেবে গড়ে তোলায় আমাদের লক্ষ্য</p>
-              <NavLink
-                to="/membership"
-                className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-white text-green-600 font-semibold rounded-lg hover:bg-slate-100 transition-all duration-300 text-sm sm:text-base"
-              >
-                এখনই যোগ দিন
-              </NavLink>
-            </div>
+          // Fallback when no slider data: show only the hero image
+          <div className="h-full w-full">
+            <img
+              src={heroImage}
+              alt="নজরুল অলিম্পিয়াড"
+              className="w-full h-full object-cover"
+              loading="eager"
+            />
           </div>
         )}
       </section>
@@ -289,29 +258,33 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Countdown and Stats Section */}
+      {/* Countdown and Stats Section - Centered Content */}
       <section className="grid lg:grid-cols-2 gap-4 sm:gap-6">
+        {/* Countdown Section - Centered */}
         <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
-          <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-3 sm:mb-4 text-center">আগামী বড় ইভেন্টের কাউন্টডাউন</h3>
-          <CountdownTimer targetDate={nextEvent} />
+          <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-4 sm:mb-6 text-center">নজরুল অলিম্পিয়াড ২০২৫</h3>
+          <div className="flex justify-center">
+            <CountdownTimer targetDate={nextEvent} />
+          </div>
         </div>
 
+        {/* Achievement Section - Centered */}
         <div className="bg-slate-50 rounded-lg sm:rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
-          <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-3 sm:mb-4 text-center">আমাদের অর্জন</h3>
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 text-center">
-            <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200">
+          <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-4 sm:mb-6 text-center">আমাদের অর্জন</h3>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200 text-center">
               <div className="text-xl sm:text-2xl font-bold text-green-600">৫০০+</div>
               <div className="text-xs sm:text-sm text-slate-600 mt-1">সক্রিয় সদস্য</div>
             </div>
-            <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200">
+            <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200 text-center">
               <div className="text-xl sm:text-2xl font-bold text-blue-600">১০০+</div>
               <div className="text-xs sm:text-sm text-slate-600 mt-1">সফল ইভেন্ট</div>
             </div>
-            <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200">
+            <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200 text-center">
               <div className="text-xl sm:text-2xl font-bold text-orange-600">২৫+</div>
               <div className="text-xs sm:text-sm text-slate-600 mt-1">প্রকাশনা</div>
             </div>
-            <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200">
+            <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200 text-center">
               <div className="text-xl sm:text-2xl font-bold text-purple-600">৫+</div>
               <div className="text-xs sm:text-sm text-slate-600 mt-1">বছরের যাত্রা</div>
             </div>

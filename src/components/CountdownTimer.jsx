@@ -21,10 +21,10 @@ export default function CountdownTimer({ targetDate }) {
     <div className="flex gap-4">
       {['days','hours','minutes','seconds'].map((key) => (
         <div key={key} className="card text-center">
-          <div className="text-3xl font-bold text-primary">
+          <div className="text-3xl font-bold text-green-400">
             {timeLeft[key]}
           </div>
-          <div className="text-xs uppercase tracking-wide text-slate-500">{key}</div>
+          <div className="text-xs uppercase tracking-wide text-green-600">{key}</div>
         </div>
       ))}
     </div>
