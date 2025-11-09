@@ -217,11 +217,19 @@ export default function Home() {
           </>
         ) : (
           // Fallback when no slider data: show only the hero image
-          <div className="h-full w-full">
+          <div className="h-full w-full relative overflow-hidden">
+            {/* Background fill to avoid top/bottom gaps on contain */}
+            <img
+              src={heroImage}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover blur scale-110 opacity-40"
+            />
+            {/* Foreground image shows full content without cropping */}
             <img
               src={heroImage}
               alt="নজরুল অলিম্পিয়াড"
-              className="w-full h-full object-cover object-top"
+              className="relative z-10 w-full h-full object-contain"
               loading="eager"
             />
           </div>
