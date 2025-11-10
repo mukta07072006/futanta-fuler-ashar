@@ -10,7 +10,9 @@ import Blog from './pages/Blog'
 import Media from './pages/Media'
 import Notice from './pages/Notice'
 import AdminDashboard from './pages/AdminDashboard'
+import MembersAdmin from './pages/MembersAdmin'
 import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -29,7 +31,9 @@ function App() {
           <Route path="/blog/*" element={<Blog />} />
           <Route path="/media" element={<Media />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/members" element={<ProtectedRoute requireAdmin={true}><MembersAdmin /></ProtectedRoute>} />
           <Route path="/notice" element={<Notice />} />
         </Routes>
       </main>

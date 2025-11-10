@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { supabase, isSupabaseConfigured } from '../supabase/client'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [status, setStatus] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const { login } = useAuth()
@@ -32,6 +34,32 @@ export default function Login() {
     } catch (err) {
       setStatus('SECURITY BREACH: Authentication failed. Verify credentials.')
       setIsLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async () => {
+    try {
+      if (!isSupabaseConfigured || !supabase) {
+        setStatus('ERROR: Supabase not configured. Contact admin.')
+        return
+      }
+      if (!email) {
+        setStatus('ERROR: Provide USER_IDENTIFIER to reset access key')
+        return
+      }
+      setIsResetting(true)
+      setStatus('RESET INIT: Sending recovery email...')
+      const redirectTo = `${window.location.origin}/reset-password`
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+      if (error) {
+        setStatus('RESET FAILED: Unable to send recovery email.')
+      } else {
+        setStatus('RECOVERY LINK SENT: Check your inbox.')
+      }
+    } catch (err) {
+      setStatus('RESET FAILED: An unexpected error occurred.')
+    } finally {
+      setIsResetting(false)
     }
   }
 
@@ -107,6 +135,19 @@ export default function Login() {
             'INITIATE ACCESS'
           )}
         </button>
+
+        {/* Forgot Password */}
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={isResetting || isLoading}
+            className="text-cyan-300 hover:text-cyan-200 text-sm font-mono underline disabled:opacity-50"
+          >
+            FORGOT ACCESS KEY?
+          </button>
+          <span className="text-gray-500 text-xs font-mono">Reset via email link</span>
+        </div>
 
         {/* Status Message */}
         {status && (

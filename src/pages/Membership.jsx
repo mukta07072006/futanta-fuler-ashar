@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createItem } from '../services/api'
+import { supabase, isSupabaseConfigured } from '../supabase/client'
 
 export default function Membership() {
   const initialForm = {
@@ -7,6 +8,7 @@ export default function Membership() {
     fatherName: '',
     motherName: '',
     institution: '',
+    class: '',
     address: '',
     email: '',
     phone: ''
@@ -17,6 +19,8 @@ export default function Membership() {
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState({})
   const [activeSection, setActiveSection] = useState('personal')
+  const [photoFile, setPhotoFile] = useState(null)
+  const [photoError, setPhotoError] = useState('')
 
   const validate = (values) => {
     const errs = {}
@@ -24,6 +28,7 @@ export default function Membership() {
     if (!values.fatherName?.trim()) errs.fatherName = 'পিতার নাম প্রয়োজন'
     if (!values.motherName?.trim()) errs.motherName = 'মাতার নাম প্রয়োজন'
     if (!values.institution?.trim()) errs.institution = 'প্রতিষ্ঠানের নাম প্রয়োজন'
+    if (!values.class?.trim()) errs.class = 'ক্লাস প্রয়োজন'
     if (!values.address?.trim()) errs.address = 'ঠিকানা প্রয়োজন'
     if (values.address?.length > 200) errs.address = 'ঠিকানা ২০০ অক্ষরের মধ্যে রাখুন'
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -49,17 +54,41 @@ export default function Membership() {
       return
     }
 
+    if (photoError) {
+      setStatus('ছবির ফাইলের সমস্যা দূর করুন।')
+      return
+    }
+
     setSubmitting(true)
     setStatus('জমা হচ্ছে...')
     try {
+      // Upload photo to Supabase if provided
+      let photoUrl = ''
+      if (photoFile) {
+        if (!isSupabaseConfigured || !supabase) {
+          throw new Error('ছবি আপলোডের জন্য Supabase কনফিগার করা নেই')
+        }
+        const bucket = 'memberships-images'
+        const ext = photoFile.name?.split('.').pop() || 'jpg'
+        const path = `members/${Date.now()}_${(form.name || 'member').replace(/\s+/g, '_')}.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from(bucket)
+          .upload(path, photoFile, { contentType: photoFile.type || 'image/jpeg', upsert: false })
+        if (uploadError) throw uploadError
+        const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+        photoUrl = data?.publicUrl || ''
+      }
+
       await createItem('memberships', {
         name: form.name,
         fatherName: form.fatherName,
         motherName: form.motherName,
         institution: form.institution,
+        class: form.class,
         address: form.address,
         email: form.email,
         phone: form.phone || '',
+        photo_url: photoUrl,
       })
 
       const webhook = import.meta.env.VITE_SHEETS_WEBHOOK_URL
@@ -72,6 +101,8 @@ export default function Membership() {
       }
       setStatus('সফলভাবে জমা হয়েছে!')
       setForm(initialForm)
+      setPhotoFile(null)
+      setPhotoError('')
       setErrors({})
     } catch (err) {
       console.error('Membership submit failed', err)
@@ -95,7 +126,7 @@ export default function Membership() {
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">সদস্য নিবন্ধন</h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            ফুতান্তা ফুলের আশর সংগঠনের সাথে যুক্ত হতে চান? নিচের ফর্সটি পূরণ করুন এবং আমাদের সদস্য হোন
+            ফুটন্ত ফুলের আসর এর সাথে যুক্ত হতে চান? নিচের ফর্ম পূরণ করুন এবং আমাদের সদস্য হোন
           </p>
         </div>
 
@@ -199,6 +230,20 @@ export default function Membership() {
                 {errors.institution && <p className="text-sm text-red-600">{errors.institution}</p>}
               </div>
 
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">ক্লাস *</label>
+                <input
+                  className={`w-full px-4 py-3 border rounded-xl transition-all duration-200 focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
+                    errors.class ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-300'
+                  }`}
+                  placeholder="যেমন: ৬ষ্ঠ, ৯ম, দ্বাদশ"
+                  value={form.class}
+                  onChange={(e) => onFieldChange('class', e.target.value)}
+                  required
+                />
+                {errors.class && <p className="text-sm text-red-600">{errors.class}</p>}
+              </div>
+
               <div className="md:col-span-2 space-y-2">
                 <label className="block text-sm font-medium text-gray-700">ঠিকানা *</label>
                 <textarea
@@ -217,6 +262,29 @@ export default function Membership() {
                     <p className="text-sm text-gray-500">অক্ষর: {form.address.length}/200</p>
                   )}
                 </div>
+              </div>
+
+              <div className="md:col-span-2 space-y-2">
+                <label className="block text-sm font-medium text-gray-700">প্রোফাইল ছবি (সর্বোচ্চ 100KB)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="w-full px-4 py-3 border rounded-xl transition-all duration-200 focus:ring-2 focus:ring-orange-500 focus:border-transparent border-gray-300"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null
+                    setPhotoFile(null)
+                    setPhotoError('')
+                    if (file) {
+                      if (file.size > 100 * 1024) {
+                        setPhotoError('ছবির ফাইল ১০০KB এর বেশি হতে পারবে না')
+                      } else {
+                        setPhotoFile(file)
+                      }
+                    }
+                  }}
+                />
+                {photoError && <p className="text-sm text-red-600">{photoError}</p>}
+                <p className="text-xs text-gray-500">JPEG/PNG সমর্থিত। ছবি দিলে অ্যাডমিন তালিকায় দেখাবে।</p>
               </div>
             </div>
 

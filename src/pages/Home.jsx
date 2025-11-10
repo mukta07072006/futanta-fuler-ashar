@@ -16,8 +16,20 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
-  const nextEvent = new Date();
-  nextEvent.setMonth(nextEvent.getMonth() + 1);
+  const [nextEventDate, setNextEventDate] = useState(null);
+  const [nextEventTitle, setNextEventTitle] = useState('');
+
+  const parseDate = (val) => {
+    try {
+      if (!val) return null;
+      if (typeof val?.toDate === 'function') return val.toDate();
+      if (typeof val === 'string') return new Date(val);
+      if (typeof val === 'number') return new Date(val);
+      return null;
+    } catch {
+      return null;
+    }
+  };
 
   // Slider: keep fallback hero until a dedicated endpoint exists
   const fetchSliderData = async () => {
@@ -52,13 +64,37 @@ export default function Home() {
     }
   };
 
+  // Fetch next upcoming event for countdown
+  const fetchNextEvent = async () => {
+    try {
+      const list = await getList('events');
+      const events = list.map(it => ({ id: it._id || it.id, ...it }));
+      const withDates = events
+        .map(e => ({ ...e, _date: parseDate(e.date) }))
+        .filter(e => e._date instanceof Date && !isNaN(e._date));
+      const future = withDates.filter(e => e._date >= new Date()).sort((a, b) => a._date - b._date);
+      if (future.length > 0) {
+        setNextEventDate(future[0]._date);
+        setNextEventTitle(future[0].title || 'আসন্ন ইভেন্ট');
+      } else {
+        setNextEventDate(null);
+        setNextEventTitle('');
+      }
+    } catch (error) {
+      console.error('Error fetching next event:', error);
+      setNextEventDate(null);
+      setNextEventTitle('');
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       await Promise.all([
         fetchSliderData(),
         fetchNotices(),
-        fetchPublications()
+        fetchPublications(),
+        fetchNextEvent()
       ]);
       setLoading(false);
     };
@@ -270,9 +306,15 @@ export default function Home() {
       <section className="grid lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Countdown Section - Centered */}
         <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
-          <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-4 sm:mb-6 text-center">নজরুল অলিম্পিয়াড ২০২৫</h3>
+          <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-4 sm:mb-6 text-center">
+            {nextEventTitle || 'আসন্ন ইভেন্ট'}
+          </h3>
           <div className="flex justify-center">
-            <CountdownTimer targetDate={nextEvent} />
+            {nextEventDate ? (
+              <CountdownTimer targetDate={nextEventDate} />
+            ) : (
+              <div className="text-slate-600 text-sm">কোনো আসন্ন ইভেন্ট নেই</div>
+            )}
           </div>
         </div>
 

@@ -9,7 +9,8 @@ const links = [
     label: 'আমাদের সম্পর্কে', 
     items: [
       { to: '/about', label: 'আমাদের সম্পর্কে' },
-      { to: '/admin', label: 'অ্যাডমিন ড্যাশবোর্ড' }
+      { to: '/admin', label: 'অ্যাডমিন ড্যাশবোর্ড' },
+      { to: '/admin/members', label: 'সদস্য তালিকা' }
     ]
   },
   { to: '/membership', label: 'সদস্যপদ' },

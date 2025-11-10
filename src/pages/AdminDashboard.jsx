@@ -3,6 +3,18 @@ import { createItem, getList, deleteItem as apiDelete } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../supabase/client'
+import { 
+  FaShieldAlt, 
+  FaUserShield, 
+  FaUser, 
+  FaIdCard, 
+  FaUserCog, 
+  FaEnvelope, 
+  FaCalendarAlt, 
+  FaExclamationTriangle, 
+  FaExclamationCircle,
+  FaCode
+} from 'react-icons/fa';
 
 const tabs = [
   { key: 'library', label: 'লাইব্রেরি', icon: '📚' },
@@ -24,6 +36,9 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [profile, setProfile] = useState(null)
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileStatus, setProfileStatus] = useState('')
 
   // Function to upload image to Supabase storage
   const uploadImage = async (file) => {
@@ -79,30 +94,7 @@ export default function AdminDashboard() {
     }
   }
 
-  // Redirect if not authenticated or not admin
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">🔒</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">অনুমতি নেই</h1>
-          <p className="text-gray-600">আপনার এই পৃষ্ঠাটি দেখার অনুমতি নেই</p>
-        </div>
-      </div>
-    )
-  }
+  // Note: Avoid early returns before hooks to keep hook order stable
 
   const collectionForTab = (tab) => {
     switch (tab) {
@@ -145,6 +137,33 @@ export default function AdminDashboard() {
         return 'ছবি URL (ঐচ্ছিক)'
     }
   }
+
+  // Load admin profile details by UID
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user) return
+      try {
+        setProfileLoading(true)
+        setProfileStatus('')
+        const { data, error } = await supabase
+          .from('profile')
+          .select('*')
+          .eq('UID', user.id)
+          .maybeSingle()
+        if (error) {
+          console.error('Profile fetch failed', error)
+          setProfileStatus('প্রোফাইল তথ্য আনতে সমস্যা হয়েছে')
+        }
+        setProfile(data || null)
+      } catch (e) {
+        console.error('Profile fetch error', e)
+        setProfileStatus('প্রোফাইল তথ্য আনতে সমস্যা হয়েছে')
+      } finally {
+        setProfileLoading(false)
+      }
+    }
+    loadProfile()
+  }, [user])
 
   // Disable Save based on active tab's required fields
   const isSaveDisabled = () => {
@@ -266,15 +285,103 @@ export default function AdminDashboard() {
     refreshList()
   }, [active])
 
+  // Normalize role for consistent display
+  const roleRaw = (profile?.['Role'] ?? '').toString()
+  const role = roleRaw.trim().toLowerCase()
+  const roleLabel = role === 'developer' ? 'ডেভেলপার' : role === 'admin' ? 'অ্যাডমিন' : role === 'moderator' ? 'মডারেটর' : 'ব্যবহারকারী'
+  const roleBadgeClass = role === 'developer'
+    ? 'bg-purple-100 text-purple-700 border border-purple-200'
+    : role === 'admin'
+    ? 'bg-red-100 text-red-700 border border-red-200'
+    : role === 'moderator'
+    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+    : 'bg-green-100 text-green-700 border border-green-200'
+  const roleIconColor = role === 'developer' ? 'text-purple-600' : role === 'admin' ? 'text-red-600' : role === 'moderator' ? 'text-blue-600' : 'text-green-600'
+  const Initial = ((profile?.['Name'] || user?.email || '?').charAt(0) || '?').toUpperCase()
+
+  // Redirect if not authenticated or not admin (placed after hooks to maintain order)
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🔒</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">অনুমতি নেই</h1>
+          <p className="text-gray-600">আপনার এই পৃষ্ঠাটি দেখার অনুমতি নেই</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
+        {/* Admin Profile Details */}
+        <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800">অ্যাডমিন তথ্য</h2>
+            {profileLoading && (
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+            )}
+          </div>
+          {profile ? (
+            <div className="space-y-6">
+              {/* Header with avatar and role badge */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${role === 'developer' ? 'bg-purple-100 text-purple-700' : role === 'admin' ? 'bg-red-100 text-red-700' : role === 'moderator' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>{Initial}</div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-800">{profile['Name'] || '—'}</h3>
+                    <p className="text-gray-600">{user?.email || '—'}</p>
+                  </div>
+                </div>
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-full ${roleBadgeClass}`}>
+                  {role === 'developer' ? (
+                    <FaCode className={`w-5 h-5 ${roleIconColor}`} />
+                  ) : role === 'admin' ? (
+                    <FaShieldAlt className={`w-5 h-5 ${roleIconColor}`} />
+                  ) : role === 'moderator' ? (
+                    <FaUserShield className={`w-5 h-5 ${roleIconColor}`} />
+                  ) : (
+                    <FaUser className={`w-5 h-5 ${roleIconColor}`} />
+                  )}
+                  <span className="font-semibold text-sm">{roleLabel}</span>
+                </div>
+              </div>
+
+              {/* Information Grid */}
+              <div className="grid sm:grid-cols-2 gap-6">
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-slate-600">
+              <FaExclamationTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-3" />
+              <p>কোন প্রোফাইল তথ্য পাওয়া যায়নি।</p>
+            </div>
+          )}
+          {profileStatus && (
+            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600">
+              <FaExclamationCircle className="w-4 h-4" />
+              <span className="text-sm">{profileStatus}</span>
+            </div>
+          )}
+        </div>
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">ADMIN DASHBOARD</h1>
           <p className="text-gray-600">কন্টেন্ট ম্যানেজমেন্ট সিস্টেম</p>
         </div>
-
         {/* Tab Navigation */}
         <div className="flex gap-2 flex-wrap justify-center mb-8">
           {tabs.map(t => (
