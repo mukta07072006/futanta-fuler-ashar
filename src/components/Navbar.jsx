@@ -21,7 +21,7 @@ const links = [
     label: 'কন্টেন্ট', 
     items: [
       { to: '/blog', label: 'ব্লগ' },
-     /* { to: '/media', label: 'মিডিয়া' }, */
+     { to: '/media', label: 'মিডিয়া' },
       { to: '/notice', label: 'নোটিশ' }
     ]
   }

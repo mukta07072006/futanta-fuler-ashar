@@ -11,6 +11,7 @@ import Media from './pages/Media'
 import Notice from './pages/Notice'
 import AdminDashboard from './pages/AdminDashboard'
 import MembersAdmin from './pages/MembersAdmin'
+import MediaManager from './pages/MediaManager'
 import Login from './pages/Login'
 import ResetPassword from './pages/ResetPassword'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -34,6 +35,7 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/members" element={<ProtectedRoute requireAdmin={true}><MembersAdmin /></ProtectedRoute>} />
+          <Route path="/admin/media" element={<ProtectedRoute requireAdmin={true}><MediaManager /></ProtectedRoute>} />
           <Route path="/notice" element={<Notice />} />
         </Routes>
       </main>

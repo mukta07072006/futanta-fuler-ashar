@@ -10,6 +10,8 @@ function tableForTab(tab) {
       return 'events'
     case 'blogs':
       return 'blogs'
+    case 'media':
+      return 'media'
     case 'members':
       return 'memberships'
     case 'memberships':
