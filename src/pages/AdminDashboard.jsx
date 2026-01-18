@@ -229,7 +229,7 @@ export default function AdminDashboard() {
   const handleSave = async () => {
     const col = collectionForTab(active)
     if (!col) {
-      setStatus('এই ট্যাবটি এখানে কনফিগারযোগ্য নয়।')
+      setStatus('This tab is not accessible there')
       return
     }
 

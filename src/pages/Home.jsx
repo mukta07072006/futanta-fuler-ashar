@@ -37,27 +37,60 @@ const ListSection = memo(({ title, items }) => (
 ));
 
 /* --- Optimized Hero Section --- */
-const HeroSection = memo(({ hero }) => {
+const HeroSection = memo(({ heroes = [] }) => {
+  const [index, setIndex] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
-  if (!hero) return <div className="aspect-[16/10] sm:aspect-video bg-slate-200 rounded-xl animate-pulse" />;
 
-  const isExternal = hero.cta_link?.match(/^(http|www|mailto|tel)/);
-  const url = hero.cta_link?.startsWith('www') ? `https://${hero.cta_link}` : hero.cta_link;
+  useEffect(() => {
+    setIndex(0);
+  }, [heroes.length]);
+
+  useEffect(() => {
+    setIsLoaded(false);
+  }, [index]);
+
+  useEffect(() => {
+    if (!heroes.length) return;
+    const id = setInterval(() => {
+      setIndex(prev => (prev + 1) % heroes.length);
+    }, 5000);
+    return () => clearInterval(id);
+  }, [heroes.length]);
+
+  if (!heroes.length) {
+    return <div className="aspect-[16/10] sm:aspect-video bg-slate-200 rounded-xl animate-pulse" />;
+  }
+
+  const hero = heroes[index] || null;
+  const isExternal = hero?.cta_link?.match(/^(http|www|mailto|tel)/);
+  const url = hero?.cta_link?.startsWith('www') ? `https://${hero.cta_link}` : hero?.cta_link;
 
   const Inner = (
     <div className="relative w-full aspect-[16/10] sm:aspect-video rounded-xl overflow-hidden bg-slate-200 shadow-lg group">
       <img
-        src={hero.image}
-        alt={hero.title || ""}
+        src={hero?.image}
+        alt={hero?.title || ""}
         onLoad={() => setIsLoaded(true)}
         className={`w-full h-full object-cover transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
         loading="eager"
       />
-      <div className="absolute inset-0 " />
+      <div className="absolute inset-0" />
       <div className="absolute bottom-0 p-4 sm:p-8 text-white w-full">
-        <h1 className="text-xl sm:text-4xl font-bold mb-2 drop-shadow-md">{hero.title}</h1>
-        <p className="text-xs sm:text-lg opacity-90 line-clamp-2">{hero.subtitle}</p>
+        <h1 className="text-xl sm:text-4xl font-bold mb-2 drop-shadow-md">{hero?.title}</h1>
+        <p className="text-xs sm:text-lg opacity-90 line-clamp-2">{hero?.subtitle}</p>
       </div>
+      {heroes.length > 1 && (
+        <div className="absolute bottom-3 right-4 flex gap-2">
+          {heroes.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setIndex(i)}
+              className={`w-2.5 h-2.5 rounded-full border border-white/60 transition-all ${i === index ? 'bg-white' : 'bg-white/40'}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -67,7 +100,7 @@ const HeroSection = memo(({ hero }) => {
 /* --- Main Home Component --- */
 export default function Home() {
   const [state, setState] = useState({
-    hero: null,
+    heroes: [],
     notices: [],
     publications: [],
     nextEvent: null,
@@ -95,8 +128,15 @@ export default function Home() {
         const pRaw = pubRes.status === 'fulfilled' ? pubRes.value : [];
         const eRaw = eventRes.status === 'fulfilled' ? eventRes.value : [];
 
-        // 1. Process Hero
-        const activeHero = Array.isArray(hRaw) ? hRaw.find(i => i.is_active) : null;
+        const processedHeroes = Array.isArray(hRaw)
+          ? [...hRaw]
+              .sort((a, b) => {
+                const aDate = new Date(a.created_at || a.createdAt || a.id || 0).getTime();
+                const bDate = new Date(b.created_at || b.createdAt || b.id || 0).getTime();
+                return bDate - aDate;
+              })
+              .slice(0, 3)
+          : [];
 
         // 2. Process Notices
         const sortedNotices = Array.isArray(nRaw) 
@@ -124,7 +164,7 @@ export default function Home() {
         }
 
         setState({
-          hero: activeHero,
+          heroes: processedHeroes,
           notices: sortedNotices,
           publications: sortedPubs,
           nextEvent: upcoming,
@@ -158,7 +198,7 @@ export default function Home() {
 
   return (
     <div className="space-y-6 sm:space-y-10 px-4 max-w-7xl mx-auto pb-10">
-      <HeroSection hero={state.hero} />
+      <HeroSection heroes={state.heroes} />
 
       <div className="grid sm:grid-cols-2 gap-4 md:gap-6">
         <div className="bg-white p-6 rounded-xl border border-slate-200 text-center shadow-sm flex flex-col justify-center min-h-[160px]">
