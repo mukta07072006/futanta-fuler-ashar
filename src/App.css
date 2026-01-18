@@ -40,3 +40,20 @@
 .read-the-docs {
   color: #888;
 }
+/* In your global CSS file */
+img {
+  content-visibility: auto;
+  contain: paint;
+}
+
+/* Optional: Add smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Prevent navbar lag */
+.sticky {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}

@@ -24,7 +24,7 @@ function App() {
   return (
     <div className="min-h-screen bg-background text-text font-bangla">
       {!isLoginPage && <Navbar />}
-      <main className="container py-8">
+      <main className="py-8">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
