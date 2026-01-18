@@ -16,7 +16,7 @@ import MediaManager from './pages/MediaManager'
 import Login from './pages/Login'
 import ResetPassword from './pages/ResetPassword'
 import ProtectedRoute from './components/ProtectedRoute'
-import BlogDetail from './components/blogDetail'
+import BlogDetail from './components/BlogDetail'
 
 function App() {
   const location = useLocation()
