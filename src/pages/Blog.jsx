@@ -92,7 +92,7 @@ function BlogList() {
 
         {/* Blog Grid */}
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {visiblePosts.map((post, index) => (
+          {visiblePosts.map((post) => (
             <div 
               key={post.id} 
               className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden group"

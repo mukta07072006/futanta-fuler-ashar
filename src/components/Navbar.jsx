@@ -16,6 +16,7 @@ const links = [
   { to: '/membership', label: 'সদস্যপদ' },
   { to: '/library', label: 'লাইব্রেরি' },
   { to: '/events', label: 'ইভেন্টস' },
+  { to: '/contact', label: 'যোগাযোগ' },
   { 
     type: 'dropdown', 
     label: 'কন্টেন্ট', 
@@ -49,19 +50,17 @@ export default function Navbar() {
               const setIsOpen = isAboutDropdown ? setAboutDropdownOpen : isContentDropdown ? setContentDropdownOpen : () => {}
 
               return (
-                <div key={link.label} className="relative group">
+                <div key={link.label} className="relative">
                   <button
                     className="px-3 py-2 rounded-2xl transition hover:text-green-700 text-slate-700 flex items-center gap-1"
                     onClick={() => setIsOpen(!isOpen)}
-                    onMouseEnter={() => setIsOpen(true)}
-                    onMouseLeave={() => setIsOpen(false)}
                   >
                     {link.label}
                     <svg 
                       xmlns="http://www.w3.org/2000/svg" 
                       viewBox="0 0 20 20" 
                       fill="currentColor" 
-                      className="w-4 h-4 transition-transform duration-200 group-hover:rotate-180"
+                      className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
                     >
                       <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
                     </svg>
@@ -70,8 +69,6 @@ export default function Navbar() {
                   {isOpen && (
                     <div 
                       className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-2 z-50"
-                      onMouseEnter={() => setIsOpen(true)}
-                      onMouseLeave={() => setIsOpen(false)}
                     >
                       {link.items.map((item) => (
                         <NavLink

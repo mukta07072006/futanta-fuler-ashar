@@ -1,6 +1,25 @@
 import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import { getList } from '../services/api'
-import noImage from '../assets/NO.jpg'
+import noImage from '../assets/empty.jpg'
+
+// Animation for the "Coming Up" scroll effect
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+}
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 40 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { type: 'spring', stiffness: 60, damping: 20 } 
+  }
+}
 
 export default function Library() {
   const [items, setItems] = useState([])
@@ -26,85 +45,114 @@ export default function Library() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="text-center mb-12">
-        <h1 className="text-3xl font-bold text-slate-900 mb-3">লাইব্রেরি</h1>
-        <p className="text-slate-600 max-w-2xl mx-auto">
-          আমাদের সংগ্রহশালা থেকে বই ও ডকুমেন্ট ডাউনলোড করুন
-        </p>
-      </div>
-
-      {loading && (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+    <div className="min-h-screen bg-[#f1f2f4] py-8 font-sans">
+      <div className="max-w-[1300px] mx-auto px-4">
+        
+        {/* Header Section */}
+        <div className="bg-white rounded shadow-sm border border-gray-200 p-6 mb-6 flex justify-between items-center">
+           <div>
+              <h1 className="text-2xl font-bold text-gray-800">লাইব্রেরি কালেকশন</h1>
+              <p className="text-sm text-gray-500 mt-1">সর্বমোট {items.length} টি বই ও ডকুমেন্ট</p>
+           </div>
+           {/* Filter/Sort Placeholder - mimic e-commerce headers */}
+           <div className="hidden sm:flex gap-2">
+              <select className="border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-600 outline-none focus:border-blue-500">
+                 <option>Sort by: Newest</option>
+                 <option>Sort by: Popular</option>
+              </select>
+           </div>
         </div>
-      )}
 
-      {/* Empty state */}
-      {!loading && !items.length && (
-        <div className="text-center py-16">
-          <div className="text-6xl mb-4">📚</div>
-          <h3 className="text-xl font-medium text-slate-800 mb-2">এখনো কোনো বই যুক্ত করা হয়নি</h3>
-          <p className="text-slate-500">শীঘ্রই আমাদের লাইব্রেরি আপডেট করা হবে</p>
-        </div>
-      )}
-
-      {/* Real items list */}
-      {!loading && items.length > 0 && (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((it) => (
-            <div key={it.id} className="group border border-slate-200 rounded-xl overflow-hidden bg-white hover:shadow-md transition-shadow">
-              <div className="h-48 bg-slate-50 relative">
-                <img
-                  src={it.thumbnail || noImage}
-                  alt={it.title || 'কভার ছবি'}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  onError={(e) => (e.currentTarget.src = noImage)}
-                />
+        {/* Loading State - Skeleton Grid */}
+        {loading && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {[...Array(10)].map((_, i) => (
+              <div key={i} className="bg-white p-3 rounded border border-gray-100 animate-pulse">
+                <div className="bg-gray-200 aspect-[2/3] w-full mb-3 rounded-sm"></div>
+                <div className="h-4 bg-gray-200 w-3/4 mb-2"></div>
+                <div className="h-3 bg-gray-200 w-1/2 mb-4"></div>
+                <div className="h-8 bg-gray-200 w-full rounded"></div>
               </div>
-              <div className="p-4 space-y-3">
-                <h3 className="font-medium text-slate-900 line-clamp-2 text-lg">
-                  {it.title || 'Untitled'}
-                </h3>
-                
-                {(it.category || it.type) && (
-                  <span className="inline-block text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full border border-blue-100">
-                    {it.category || it.type}
-                  </span>
-                )}
-                
-                {(it.description || it.content) && (
-                  <p className="text-slate-600 text-sm line-clamp-3 leading-relaxed">
-                    {it.description || it.content}
-                  </p>
-                )}
-                
-                <div className="flex gap-2">
-                  <button
-                    className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium transition-colors duration-200 disabled:bg-slate-300 disabled:cursor-not-allowed"
-                    onClick={() => openUrl(it.url || it.downloadUrl)}
-                    disabled={!it.url && !it.downloadUrl}
-                  >
-                    ডাউনলোড
-                  </button>
-                  
-                  {(it.url || it.downloadUrl) && (
-                    <a
-                      className="flex items-center justify-center px-3 py-2.5 rounded-lg border border-slate-300 text-slate-700 text-sm hover:border-orange-400 hover:text-orange-700 transition-colors duration-200"
-                      href={it.url || it.downloadUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      ↗
-                    </a>
+            ))}
+          </div>
+        )}
+
+        {/* Content Grid */}
+        {!loading && (
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4"
+          >
+            {items.map((it) => (
+              <motion.div
+                key={it.id}
+                variants={cardVariants}
+                className="group relative bg-white border border-gray-200 rounded hover:shadow-lg hover:border-transparent transition-all duration-300 flex flex-col"
+              >
+                {/* Book Cover Section */}
+                <div className="p-4 flex justify-center bg-white relative overflow-hidden">
+                  <div className="relative w-full aspect-[2/3] max-w-[160px] shadow-sm group-hover:shadow-md transition-shadow">
+                    <img
+                      src={it.thumbnail || noImage}
+                      alt={it.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => (e.currentTarget.src = noImage)}
+                    />
+                    
+                    {/* View Details Overlay (Rokomari Style) */}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                       <button 
+                         onClick={() => openUrl(it.url || it.downloadUrl)}
+                         className="bg-white/90 text-gray-800 text-xs font-bold px-4 py-2 rounded-full transform scale-90 group-hover:scale-100 transition-transform"
+                       >
+                         PREVIEW
+                       </button>
+                    </div>
+                  </div>
+
+                  {/* Badge (e.g., PDF/New) - Mimics Discount Badge */}
+                  {(it.category || it.type) && (
+                    <span className="absolute top-2 right-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-l-md shadow-sm z-10">
+                      {it.category || it.type}
+                    </span>
                   )}
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+
+                {/* Info Section */}
+                <div className="px-3 pb-3 flex flex-col flex-grow text-center">
+                  
+                  {/* Title */}
+                  <h3 className="text-gray-800 font-semibold text-[15px] leading-tight line-clamp-2 mb-1 group-hover:text-blue-600 transition-colors cursor-pointer" title={it.title}>
+                    {it.title || 'Untitled'}
+                  </h3>
+
+                 
+
+                  {/* Action Button */}
+                  <button
+                    onClick={() => openUrl(it.url || it.downloadUrl)}
+                    disabled={!it.url && !it.downloadUrl}
+                    className="w-full border border-blue-500 text-blue-600 hover:bg-blue-600 hover:text-white font-medium text-sm py-1.5 rounded transition-colors duration-200 flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    {it.url || it.downloadUrl ? 'ডাউনলোড' : 'Unavailable'}
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+        
+        {/* Empty State */}
+        {!loading && items.length === 0 && (
+           <div className="text-center py-20 bg-white rounded shadow border border-gray-100">
+              <div className="text-6xl mb-4 text-gray-200">☹</div>
+              <p className="text-gray-500 text-lg">কোনো ফলাফল পাওয়া যায়নি</p>
+           </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -36,3 +36,11 @@ body {
 .card {
   @apply rounded-2xl bg-white shadow-sm hover:shadow-md transition p-4;
 }
+
+.scroll-fade-up {
+  @apply opacity-0 translate-y-6 transition-all duration-700;
+}
+
+.scroll-fade-up-active {
+  @apply opacity-100 translate-y-0;
+}

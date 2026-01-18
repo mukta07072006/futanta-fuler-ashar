@@ -3,6 +3,7 @@ import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import Home from './pages/Home'
 import About from './pages/About'
+import Contact from './pages/Contact'
 import Membership from './pages/Membership'
 import Library from './pages/Library'
 import Events from './pages/Events'
@@ -26,6 +27,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
           <Route path="/membership" element={<Membership />} />
           <Route path="/library" element={<Library />} />
           <Route path="/events" element={<Events />} />

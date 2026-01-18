@@ -37,7 +37,7 @@ export default function ResetPassword() {
         setStatus('SUCCESS: Access key updated. Redirecting...')
         setTimeout(() => navigate('/login', { replace: true }), 1500)
       }
-    } catch (err) {
+    } catch {
       setStatus('UPDATE FAILED: Unexpected error occurred')
     } finally {
       setSubmitting(false)

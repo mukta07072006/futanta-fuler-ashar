@@ -50,7 +50,7 @@ export default function AdminDashboard() {
       const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
       const bucketName = `${active}-images`
       
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from(bucketName)
         .upload(fileName, file)
       
@@ -65,36 +65,6 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Image upload failed:', error)
       setStatus('ছবি আপলোড ব্যর্থ হয়েছে')
-      return null
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  // Cloudinary unsigned upload for Media tab (free storage)
-  const uploadImageCloudinary = async (file) => {
-    if (!file) return null
-    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
-    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
-    const folder = import.meta.env.VITE_CLOUDINARY_FOLDER
-    if (!cloudName || !uploadPreset) {
-      setStatus('Cloudinary কনফিগার করা নেই: .env এ VITE_CLOUDINARY_CLOUD_NAME এবং VITE_CLOUDINARY_UPLOAD_PRESET সেট করুন')
-      return null
-    }
-    try {
-      setUploading(true)
-      const url = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('upload_preset', uploadPreset)
-      if (folder) formData.append('folder', folder)
-      const resp = await fetch(url, { method: 'POST', body: formData })
-      if (!resp.ok) throw new Error('Cloudinary upload failed')
-      const json = await resp.json()
-      return json.secure_url || json.url || null
-    } catch (e) {
-      console.error('Cloudinary upload error', e)
-      setStatus('Cloudinary এ আপলোড ব্যর্থ হয়েছে')
       return null
     } finally {
       setUploading(false)

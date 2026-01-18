@@ -86,7 +86,9 @@ export default function MediaManager() {
             const errJson = await resp.json()
             detail = errJson?.error?.message || errJson?.message || ''
             console.error('Cloudinary error response:', errJson)
-          } catch {}
+          } catch (parseError) {
+            console.error('Cloudinary error response parse failed', parseError)
+          }
           throw new Error(detail ? `Upload failed: ${detail}` : 'Upload failed')
         }
         const json = await resp.json()

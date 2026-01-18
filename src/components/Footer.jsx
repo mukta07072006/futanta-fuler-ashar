@@ -26,7 +26,7 @@ export default function Footer() {
             </li>
             <li className="flex items-center space-x-3">
               <FiPhone className="w-5 h-5 text-green-600" />
-              <span>+88015660064956</span>
+              <span>+8801322558855</span>
             </li>
           </ul>
         </div>

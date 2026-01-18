@@ -1,13 +1,34 @@
-import { FiInfo, FiTarget, FiCheckCircle, FiHeart } from 'react-icons/fi'
+import { useEffect } from 'react'
+import { FiTarget, FiCheckCircle, FiHeart } from 'react-icons/fi'
+import logo from '../assets/logo.png'
 
 export default function About() {
+  useEffect(() => {
+    const elements = document.querySelectorAll('.scroll-fade-up')
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('scroll-fade-up-active')
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.2 }
+    )
+
+    elements.forEach(element => observer.observe(element))
+
+    return () => observer.disconnect()
+  }, [])
+
   return (
     <div className="min-h-screen bg-white py-8 px-4" style={{ fontFamily: 'ui-sans-serif, sans-serif' }}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-10 scroll-fade-up">
           <h1 className="inline-flex items-center gap-2 text-4xl md:text-5xl font-bold text-green-700">
-            <FiInfo className="text-green-600" /> ফুটন্ত ফুলের আসর
+            <img src={logo} alt="ফুটন্ত ফুলের আসর লোগো" className="h-10 w-10 object-contain" /> ফুটন্ত ফুলের আসর
           </h1>
           <p className="mt-3 text-slate-700 text-base md:text-lg max-w-2xl mx-auto">
             শিশু-কিশোরদের আদর্শ নাগরিক হিসেবে গড়ে তোলার এক অনন্য প্রতিষ্ঠান
@@ -15,7 +36,7 @@ export default function About() {
         </div>
 
         {/* Mission */}
-        <section className="bg-white border border-green-200 rounded-xl p-6 md:p-8 mb-10">
+        <section className="scroll-fade-up bg-white border border-green-200 rounded-xl p-6 md:p-8 mb-10">
           <div className="flex items-center gap-2 mb-4">
             <FiTarget className="text-green-600" />
             <h2 className="text-2xl md:text-3xl font-bold text-slate-900">আমাদের লক্ষ্য</h2>
@@ -26,7 +47,7 @@ export default function About() {
         </section>
 
         {/* Objectives */}
-        <section className="mb-12">
+        <section className="scroll-fade-up mb-12">
           <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-6">আমাদের উদ্দেশ্য</h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {/* Card 1 */}
@@ -116,7 +137,7 @@ export default function About() {
         </section>
 
         {/* Commitment */}
-        <section className="bg-white border border-green-200 rounded-xl p-6 md:p-8">
+        <section className="scroll-fade-up bg-white border border-green-200 rounded-xl p-6 md:p-8">
           <div className="text-center mb-4">
             <h2 className="inline-flex items-center gap-2 text-2xl md:text-3xl font-bold text-slate-900">
               <FiHeart className="text-green-600" /> আমাদের প্রতিশ্রুতি

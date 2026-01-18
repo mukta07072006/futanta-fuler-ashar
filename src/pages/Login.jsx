@@ -31,7 +31,7 @@ export default function Login() {
       setStatus('ACCESS GRANTED - Redirecting to secure zone...')
       const redirectTo = location.state?.from?.pathname || '/admin'
       navigate(redirectTo, { replace: true })
-    } catch (err) {
+    } catch {
       setStatus('SECURITY BREACH: Authentication failed. Verify credentials.')
       setIsLoading(false)
     }
@@ -56,7 +56,7 @@ export default function Login() {
       } else {
         setStatus('RECOVERY LINK SENT: Check your inbox.')
       }
-    } catch (err) {
+    } catch {
       setStatus('RESET FAILED: An unexpected error occurred.')
     } finally {
       setIsResetting(false)
