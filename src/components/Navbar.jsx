@@ -4,11 +4,11 @@ import logo from '../assets/logo.png'
 
 const links = [
   { to: '/', label: 'হোম' },
+  { to: '/about', label: 'আমাদের সম্পর্কে' },
   {
     type: 'dropdown',
-    label: 'আমাদের সম্পর্কে',
+    label: 'অ্যাডমিন', // Add a label for the dropdown button
     items: [
-      { to: '/about', label: 'আমাদের সম্পর্কে' },
       { to: '/admin', label: 'অ্যাডমিন ড্যাশবোর্ড' },
       { to: '/admin/members', label: 'সদস্য তালিকা' }
     ]
@@ -17,15 +17,9 @@ const links = [
   { to: '/library', label: 'লাইব্রেরি' },
   { to: '/events', label: 'ইভেন্টস' },
   { to: '/contact', label: 'যোগাযোগ' },
-  {
-    type: 'dropdown',
-    label: 'কন্টেন্ট',
-    items: [
-      { to: '/blog', label: 'ব্লগ' },
-      { to: '/media', label: 'মিডিয়া' },
-      { to: '/notice', label: 'নোটিশ' }
-    ]
-  }
+  { to: '/blog', label: 'ব্লগ' },
+  { to: '/media', label: 'মিডিয়া' },
+  { to: '/notice', label: 'নোটিশ' },
 ]
 
 export default function Navbar() {
