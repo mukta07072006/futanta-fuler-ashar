@@ -1,263 +1,141 @@
-import { useEffect, useState } from 'react'
-import { NavLink, Routes, Route, useParams } from 'react-router-dom'
-import { getList, getById } from '../services/api'
+import { useEffect, useState, useMemo } from 'react'
+import { NavLink } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { getList } from '../services/api'
 
-function BlogList() {
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=20&w=500&auto=format&fit=crop'
+
+// Rokomari-style Spring (Subtle and fast)
+const rokomariSpring = { type: 'spring', stiffness: 300, damping: 30 };
+
+const containerVars = {
+  visible: { transition: { staggerChildren: 0.05 } }
+}
+
+const itemVars = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: rokomariSpring }
+}
+
+export default function BlogList() {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
-  const [categories, setCategories] = useState([])
-  const [activeCategory, setActiveCategory] = useState(null)
-
-  const getExcerpt = (text, maxChars = 160) => {
-    if (!text) return ''
-    const clean = String(text).replace(/\s+/g, ' ').trim()
-    if (clean.length <= maxChars) return clean
-    const slice = clean.slice(0, maxChars)
-    const lastSpace = slice.lastIndexOf(' ')
-    return (lastSpace > 0 ? slice.slice(0, lastSpace) : slice) + '…'
-  }
+  const [activeCategory, setActiveCategory] = useState('সব')
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const list = await getList('blogs')
-        const mapped = list.map(it => ({ id: it._id || it.id, ...it }))
-        setPosts(mapped)
-        const cats = Array.from(new Set(mapped.map(it => it.category).filter(Boolean)))
-        setCategories(cats)
-        setActiveCategory(cats[0] || null)
-      } catch (e) {
-        console.error('Failed to load blogs', e)
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
+    let isMounted = true;
+    getList('blogs').then(list => {
+      if (!isMounted) return;
+      setPosts(list.map(it => ({ id: it.id, ...it })));
+      setLoading(false);
+    }).catch(() => setLoading(false));
+    return () => { isMounted = false };
   }, [])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">ব্লগ পোস্ট লোড হচ্ছে...</p>
-        </div>
-      </div>
-    )
-  }
+  const categories = useMemo(() => {
+    return ['সব', ...new Set(posts.map(it => it.category).filter(Boolean))];
+  }, [posts]);
 
-  if (!posts.length) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">📝</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">এখনো কোনো ব্লগ পোস্ট নেই</h2>
-          <p className="text-gray-600">শীঘ্রই নতুন ব্লগ পোস্ট আসছে!</p>
-        </div>
-      </div>
-    )
-  }
+  const filteredPosts = useMemo(() => {
+    return activeCategory === 'সব' ? posts : posts.filter(p => p.category === activeCategory);
+  }, [activeCategory, posts]);
 
-  const visiblePosts = activeCategory ? posts.filter(p => p.category === activeCategory) : posts
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-[#f1f2f4]">
+      <div className="w-8 h-8 border-2 border-[#2196f3] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  )
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8" style={{ fontFamily: 'Noto Sans Bengali, ui-sans-serif, sans-serif' }}>
-      <div className="max-w-6xl mx-auto px-4">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">ফুলের আসর ব্লগ</h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            শিক্ষা, সংস্কৃতি এবং সম্প্রদায় সম্পর্কে চিন্তাভাবনা এবং অন্তর্দৃষ্টি
-          </p>
+    <div className="min-h-screen bg-[#f1f2f4] py-6 px-4">
+      <div className="max-w-[1200px] mx-auto">
+        
+        {/* Rokomari Style Category Header */}
+        <div className="bg-white p-4 rounded shadow-sm border border-gray-200 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <h1 className="text-xl font-bold text-gray-700">ব্লগ কালেকশন</h1>
+            <div className="flex flex-wrap gap-2">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-4 py-1.5 rounded text-sm transition-all ${
+                    activeCategory === cat 
+                    ? 'bg-[#2196f3] text-white' 
+                    : 'bg-white text-gray-600 border border-gray-300 hover:border-[#2196f3]'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Category Tabs */}
-        {!!categories.length && (
-          <div className="flex gap-2 flex-wrap justify-center mb-10">
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-2 rounded-lg border text-sm transition-colors ${
-                  activeCategory === cat
-                    ? 'border-green-600 text-green-700 bg-green-50'
-                    : 'border-gray-300 text-gray-700 hover:border-green-400 hover:text-green-700'
-                }`}
+        {/* The Grid */}
+        <motion.div 
+          variants={containerVars}
+          initial="hidden"
+          animate="visible"
+          className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+        >
+          <AnimatePresence mode='popLayout'>
+            {filteredPosts.map((post) => (
+              <motion.div
+                key={post.id}
+                layout
+                variants={itemVars}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="group bg-white border border-gray-200 rounded hover:shadow-xl transition-all duration-300 flex flex-col"
               >
-                {cat}
-              </button>
+                {/* Thumbnail Section */}
+                <div className="relative p-3 bg-white flex justify-center h-48 sm:h-56">
+                  <img 
+                    src={post.thumbnail || FALLBACK_IMAGE} 
+                    loading="lazy"
+                    alt=""
+                    className="w-full h-full object-cover rounded-sm shadow-sm group-hover:opacity-90 transition-opacity"
+                    onError={(e) => (e.target.src = FALLBACK_IMAGE)}
+                  />
+                  {/* Category Badge */}
+                  {post.category && (
+                    <span className="absolute top-3 right-3 bg-[#2196f3] text-white text-[10px] font-bold px-2 py-0.5 rounded-l shadow-sm">
+                      {post.category}
+                    </span>
+                  )}
+                </div>
+
+                {/* Info Section */}
+                <div className="p-3 pt-0 flex flex-col flex-grow text-center">
+                  <h3 className="text-gray-800 font-bold text-sm line-clamp-2 leading-snug mb-2 min-h-[40px] group-hover:text-[#2196f3] transition-colors">
+                    {post.title}
+                  </h3>
+                  
+                  <div className="text-[11px] text-gray-400 mb-4 uppercase">
+                    {new Date(post.created_at).toLocaleDateString('bn-BD')}
+                  </div>
+
+                  <div className="mt-auto">
+                    <NavLink 
+                      to={`/blog/${post.id}`}
+                      className="inline-block w-full py-1.5 border border-[#2196f3] text-[#2196f3] hover:bg-[#2196f3] hover:text-white text-xs font-bold rounded transition-colors"
+                    >
+                      বিস্তারিত পড়ুন
+                    </NavLink>
+                  </div>
+                </div>
+              </motion.div>
             ))}
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Empty State */}
+        {!loading && filteredPosts.length === 0 && (
+          <div className="text-center py-20 bg-white rounded border border-gray-200">
+            <p className="text-gray-400">এই ক্যাটাগরিতে কোনো পোস্ট পাওয়া যায়নি</p>
           </div>
         )}
-
-        {/* Blog Grid */}
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {visiblePosts.map((post) => (
-            <div 
-              key={post.id} 
-              className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden group"
-            >
-              {/* Content */}
-              <div className="p-6">
-                {/* Category Badge */}
-                {post.category && (
-                  <span className="inline-block bg-orange-100 text-orange-800 text-xs font-semibold px-3 py-1 rounded-full mb-3">
-                    {post.category}
-                  </span>
-                )}
-
-                {/* Title */}
-                <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-orange-600 transition-colors">
-                  {post.title}
-                </h3>
-
-                {/* Content Excerpt Preview */}
-                {(post.content || post.description) && (
-                  <p className="text-gray-600 mb-4">
-                    {getExcerpt(post.content || post.description)}
-                  </p>
-                )}
-
-                {/* Read More Button */}
-                <NavLink 
-                  to={`/blog/${post.id}`}
-                  className="inline-flex items-center text-orange-600 font-semibold hover:text-orange-700 transition-colors"
-                >
-                  সম্পূর্ণ পড়ুন
-                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </NavLink>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
-  )
-}
-
-function BlogPost() {
-  const { id } = useParams()
-  const [post, setPost] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const loadOne = async () => {
-      try {
-        const item = await getById('blogs', id)
-        setPost(item ? { id: item._id || item.id, ...item } : null)
-      } catch (e) {
-        console.error('Failed to load blog post', e)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadOne()
-  }, [id])
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">ব্লগ পোস্ট লোড হচ্ছে...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!post) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">❌</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">পোস্ট পাওয়া যায়নি</h1>
-          <p className="text-gray-600">এই ব্লগ পোস্টটি পাওয়া যায়নি বা মুছে ফেলা হয়েছে</p>
-          <NavLink to="/blog" className="text-orange-600 hover:underline mt-4 inline-block">
-            ← সব ব্লগ দেখুন
-          </NavLink>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 py-8" style={{ fontFamily: 'Noto Sans Bengali, ui-sans-serif, sans-serif' }}>
-      <div className="max-w-4xl mx-auto px-4">
-        {/* Back Button */}
-        <NavLink 
-          to="/blog"
-          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-8 transition-colors"
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          সব ব্লগ দেখুন
-        </NavLink>
-
-        <article className="bg-white rounded-xl shadow-lg p-8">
-          {/* Header */}
-          <header className="mb-8">
-            {post.category && (
-              <span className="inline-block bg-orange-100 text-orange-800 text-sm font-semibold px-4 py-2 rounded-full mb-4">
-                {post.category}
-              </span>
-            )}
-            
-            <h1 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">
-              {post.title}
-            </h1>
-
-            {post.description && (
-              <p className="text-xl text-gray-600 mb-6 leading-relaxed">
-                {post.description}
-              </p>
-            )}
-
-            {/* Meta Information */}
-            <div className="flex items-center text-sm text-gray-500">
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              {new Date(post.created_at || post.date || Date.now()).toLocaleDateString('bn-BD')}
-            </div>
-          </header>
-
-          {/* Content */}
-          <div className="prose prose-lg max-w-none">
-            <div className="text-gray-800 leading-relaxed whitespace-pre-line">
-              {post.content}
-            </div>
-          </div>
-
-          {/* Tags */}
-          {post.tags && (
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">ট্যাগস:</h3>
-              <div className="flex flex-wrap gap-2">
-                {post.tags.split(',').map((tag, index) => (
-                  <span 
-                    key={index}
-                    className="inline-block bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full"
-                  >
-                    #{tag.trim()}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </article>
-      </div>
-    </div>
-  )
-}
-
-export default function Blog() {
-  return (
-    <Routes>
-      <Route index element={<BlogList />} />
-      <Route path=":id" element={<BlogPost />} />
-    </Routes>
   )
 }
