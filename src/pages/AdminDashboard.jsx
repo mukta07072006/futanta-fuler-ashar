@@ -19,7 +19,6 @@ import {
 
 const tabs = [
   { key: 'main_hero', label: 'মেইন হিরো', icon: '🖼️' },
-  { key: 'hero_slider', label: 'হিরো স্লাইডার', icon: '🎬' },
   { key: 'library', label: 'লাইব্রেরি', icon: '📚' },
   { key: 'notices', label: 'নোটিশ', icon: '📢' },
   { key: 'events', label: 'ইভেন্ট', icon: '🎉' },
@@ -613,58 +612,6 @@ export default function AdminDashboard() {
                     value={ctaLink}
                     onChange={(e) => setCtaLink(e.target.value)}
                   />
-                </div>
-              </>
-            )}
-
-            {/* Hero Slider specific fields */}
-            {active === 'hero_slider' && (
-              <>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">শিরোনাম</label>
-                  <input
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-                    placeholder="শিরোনাম (ঐচ্ছিক)"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">লিংক</label>
-                  <input
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-                    type="url"
-                    placeholder="/blog/123 (ঐচ্ছিক)"
-                    value={link}
-                    onChange={(e) => setLink(e.target.value)}
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Display Order and Active Status for hero sections */}
-            {(active === 'main_hero' || active === 'hero_slider') && (
-              <>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">ডিসপ্লে অর্ডার</label>
-                  <input
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-                    type="number"
-                    placeholder="0"
-                    value={displayOrder}
-                    onChange={(e) => setDisplayOrder(parseInt(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="space-y-2 flex items-end">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isActive}
-                      onChange={(e) => setIsActive(e.target.checked)}
-                      className="w-5 h-5 text-orange-600 rounded focus:ring-2 focus:ring-orange-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700">সক্রিয়</span>
-                  </label>
                 </div>
               </>
             )}

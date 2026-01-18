@@ -53,7 +53,7 @@ const HeroSection = memo(({ hero }) => {
         className={`w-full h-full object-cover transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
         loading="eager"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+      <div className="absolute inset-0 " />
       <div className="absolute bottom-0 p-4 sm:p-8 text-white w-full">
         <h1 className="text-xl sm:text-4xl font-bold mb-2 drop-shadow-md">{hero.title}</h1>
         <p className="text-xs sm:text-lg opacity-90 line-clamp-2">{hero.subtitle}</p>
