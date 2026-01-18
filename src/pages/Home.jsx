@@ -2,145 +2,98 @@ import { useState, useEffect } from 'react';
 import { getList } from '../services/api';
 import CountdownTimer from '../components/CountdownTimer';
 import { NavLink } from 'react-router-dom';
-import heroImage from '../assets/NO.jpg';
 
-// Data keys
 const NOTICES_KEY = 'notices';
 const PUBLICATIONS_KEY = 'library';
 
 export default function Home() {
-  const [sliderData, setSliderData] = useState([]);
+  const [mainHero, setMainHero] = useState(null);
+  const [sliderImages, setSliderImages] = useState([]);
   const [notices, setNotices] = useState([]);
   const [publications, setPublications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [nextEventDate, setNextEventDate] = useState(null);
   const [nextEventTitle, setNextEventTitle] = useState('');
 
-  const parseDate = (val) => {
-    try {
-      if (!val) return null;
-      if (typeof val?.toDate === 'function') return val.toDate();
-      if (typeof val === 'string') return new Date(val);
-      if (typeof val === 'number') return new Date(val);
-      return null;
-    } catch {
-      return null;
-    }
-  };
-
-  // Slider: keep fallback hero until a dedicated endpoint exists
-  const fetchSliderData = async () => {
-    setSliderData([]);
-  };
-
-  // Fetch notices from REST API
-  const fetchNotices = async () => {
-    try {
-      const list = await getList(NOTICES_KEY);
-      const sorted = list
-        .map(it => ({ id: it._id || it.id, ...it }))
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, 4);
-      setNotices(sorted);
-    } catch (error) {
-      console.error('Error fetching notices:', error);
-    }
-  };
-
-  // Fetch publications (library items) from REST API
-  const fetchPublications = async () => {
-    try {
-      const list = await getList(PUBLICATIONS_KEY);
-      const sorted = list
-        .map(it => ({ id: it._id || it.id, ...it }))
-        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-        .slice(0, 4);
-      setPublications(sorted);
-    } catch (error) {
-      console.error('Error fetching publications:', error);
-    }
-  };
-
-  // Fetch next upcoming event for countdown
-  const fetchNextEvent = async () => {
-    try {
-      const list = await getList('events');
-      const events = list.map(it => ({ id: it._id || it.id, ...it }));
-      const withDates = events
-        .map(e => ({ ...e, _date: parseDate(e.date) }))
-        .filter(e => e._date instanceof Date && !isNaN(e._date));
-      const future = withDates.filter(e => e._date >= new Date()).sort((a, b) => a._date - b._date);
-      if (future.length > 0) {
-        setNextEventDate(future[0]._date);
-        setNextEventTitle(future[0].title || 'আসন্ন ইভেন্ট');
-      } else {
-        setNextEventDate(null);
-        setNextEventTitle('');
-      }
-    } catch (error) {
-      console.error('Error fetching next event:', error);
-      setNextEventDate(null);
-      setNextEventTitle('');
-    }
-  };
-
   useEffect(() => {
-    const fetchData = async () => {
+    const loadData = async () => {
       setLoading(true);
-      await Promise.all([
-        fetchSliderData(),
-        fetchNotices(),
-        fetchPublications(),
-        fetchNextEvent()
-      ]);
-      setLoading(false);
+      try {
+        const [heroList, sliderList, noticesList, pubList, eventList] = await Promise.all([
+          getList('main_hero'),
+          getList('hero_slider'),
+          getList(NOTICES_KEY),
+          getList(PUBLICATIONS_KEY),
+          getList('events')
+        ]);
+
+        // Main hero
+        const activeHero = heroList
+          .filter(h => h.is_active)
+          .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))[0];
+        setMainHero(activeHero || null);
+
+        // Slider images
+        const activeSlider = sliderList
+          .filter(item => item.is_active)
+          .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+          .map(item => ({
+            id: item.id,
+            image: item.image,
+            title: item.title,
+            link: item.link
+          }));
+        setSliderImages(activeSlider);
+
+        // Notices
+        const sortedNotices = noticesList
+          .map(it => ({ id: it._id || it.id, ...it }))
+          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .slice(0, 4);
+        setNotices(sortedNotices);
+
+        // Publications
+        const sortedPubs = pubList
+          .map(it => ({ id: it._id || it.id, ...it }))
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+          .slice(0, 4);
+        setPublications(sortedPubs);
+
+        // Next event
+        const events = eventList.map(it => ({ id: it._id || it.id, ...it }));
+        const now = new Date();
+        const futureEvents = events
+          .map(e => {
+            let date = null;
+            try {
+              if (e.date?.toDate) date = e.date.toDate();
+              else if (typeof e.date === 'string') date = new Date(e.date);
+              else if (typeof e.date === 'number') date = new Date(e.date);
+              return { ...e, _date: date };
+            } catch {
+              return { ...e, _date: null };
+            }
+          })
+          .filter(e => e._date instanceof Date && !isNaN(e._date) && e._date >= now)
+          .sort((a, b) => a._date - b._date);
+
+        if (futureEvents.length > 0) {
+          setNextEventDate(futureEvents[0]._date);
+          setNextEventTitle(futureEvents[0].title || 'আসন্ন ইভেন্ট');
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
     };
-    fetchData();
+
+    loadData();
   }, []);
-
-  // Auto slide functionality
-  useEffect(() => {
-    if (sliderData.length > 1) {
-      const interval = setInterval(() => {
-        setCurrentSlide((prev) => (prev + 1) % sliderData.length);
-      }, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [sliderData.length]);
-
-  // Touch handlers for mobile swipe
-  const handleTouchStart = (e) => {
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchMove = (e) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
-
-    if (isLeftSwipe) {
-      nextSlide();
-    } else if (isRightSwipe) {
-      prevSlide();
-    }
-  };
-
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % sliderData.length);
-  };
-
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + sliderData.length) % sliderData.length);
-  };
 
   if (loading) {
     return (
@@ -152,125 +105,158 @@ export default function Home() {
 
   return (
     <div className="space-y-8 md:space-y-12 px-3 sm:px-4 md:px-6">
-      {/* Hero Slider Section - Rectangular Ratio */}
-      <section className="relative h-[40vh] sm:h-[50vh] md:h-[60vh] lg:h-[70vh] rounded-lg md:rounded-xl overflow-hidden bg-slate-100">
-        {sliderData.length > 0 ? (
-          <>
-            {/* Slides */}
-            <div 
-              className="relative h-full w-full"
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-            >
-              {sliderData.map((slide, index) => (
-                <div
-                  key={slide.id}
-                  className={`absolute inset-0 transition-opacity duration-500 ease-in-out ${
-                    index === currentSlide ? 'opacity-100' : 'opacity-0'
-                  }`}
-                >
-                  <div className="absolute inset-0 bg-black/40 z-10"></div>
-                  {slide.image && (
-                    <img
-                      src={slide.image}
-                      alt={slide.title}
-                      className="w-full h-full object-cover"
-                      loading="eager"
-                    />
-                  )}
-                  <div className="absolute inset-0 z-20 flex items-center justify-center">
-                    <div className="container mx-auto px-4 sm:px-6 text-center">
-                      <div className="max-w-3xl mx-auto text-white">
-                        <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4 leading-tight">
-                          {slide.title}
-                        </h1>
-                        <p className="text-sm sm:text-lg md:text-xl lg:text-2xl mb-4 sm:mb-6 md:mb-8 text-slate-100 px-2 sm:px-0">
-                          {slide.subtitle}
-                        </p>
-                        <NavLink
-                          to={slide.ctaLink || "/membership"}
-                          className="inline-flex items-center px-5 sm:px-6 md:px-8 py-2.5 sm:py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all duration-300 shadow-md text-sm sm:text-base md:text-lg"
-                        >
-                          {slide.cta || "এখনই যোগ দিন"}
-                          <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                          </svg>
-                        </NavLink>
-                      </div>
-                    </div>
+      {/* Main Hero Image Section */}
+      <section className="relative w-full aspect-video rounded-lg md:rounded-xl overflow-hidden bg-slate-100">
+        {mainHero ? (
+          <div className="absolute inset-0">
+            <div className="absolute inset-0 bg-black/40 z-10"></div>
+            <img
+              src={mainHero.image}
+              alt={mainHero.title || 'নজরুল অলিম্পিয়াড'}
+              className="w-full h-full object-cover"
+              loading="eager"
+              decoding="async"
+            />
+            {(mainHero.title || mainHero.subtitle || mainHero.cta_text) && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center">
+                <div className="container mx-auto px-4 sm:px-6 text-center">
+                  <div className="max-w-3xl mx-auto text-white">
+                    {mainHero.title && (
+                      <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4 leading-tight">
+                        {mainHero.title}
+                      </h1>
+                    )}
+                    {mainHero.subtitle && (
+                      <p className="text-sm sm:text-lg md:text-xl lg:text-2xl mb-4 sm:mb-6 md:mb-8 text-slate-100">
+                        {mainHero.subtitle}
+                      </p>
+                    )}
+                    {mainHero.cta_text && (
+                      <NavLink
+                        to={mainHero.cta_link || "/membership"}
+                        className="inline-flex items-center px-5 sm:px-6 md:px-8 py-2.5 sm:py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all duration-300 shadow-md text-sm sm:text-base md:text-lg"
+                      >
+                        {mainHero.cta_text}
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </NavLink>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
-
-            {/* Slider Controls - Hidden on mobile, visible on tablet+ */}
-            {sliderData.length > 1 && (
-              <>
-                <button
-                  onClick={prevSlide}
-                  className="hidden sm:flex absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 z-30 bg-white/80 hover:bg-white text-slate-800 p-2 md:p-3 rounded-full transition-all duration-300 shadow-lg"
-                  aria-label="Previous slide"
-                >
-                  <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button
-                  onClick={nextSlide}
-                  className="hidden sm:flex absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 z-30 bg-white/80 hover:bg-white text-slate-800 p-2 md:p-3 rounded-full transition-all duration-300 shadow-lg"
-                  aria-label="Next slide"
-                >
-                  <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </>
-            )}
-
-            {/* Slider Indicators */}
-            {sliderData.length > 1 && (
-              <div className="absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 z-30 flex space-x-2 sm:space-x-3">
-                {sliderData.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentSlide(index)}
-                    className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full transition-all duration-300 ${
-                      index === currentSlide ? 'bg-white' : 'bg-white/50'
-                    }`}
-                    aria-label={`Go to slide ${index + 1}`}
-                  />
-                ))}
               </div>
             )}
-
-            {/* Mobile Swipe Instruction */}
-            {sliderData.length > 1 && (
-              <div className="sm:hidden absolute bottom-2 left-1/2 transform -translate-x-1/2 z-30">
-                <span className="text-white/70 text-xs">সোয়াইপ করুন ← →</span>
-              </div>
-            )}
-          </>
+          </div>
         ) : (
-          // Fallback when no slider data: show only the hero image
-          <div className="h-full w-full relative overflow-hidden">
-            {/* Background fill to avoid top/bottom gaps on contain */}
-            <img
-              src={heroImage}
-              alt=""
-              aria-hidden="true"
-              className="absolute inset-0 w-full h-full object-cover blur scale-110 opacity-40"
-            />
-            {/* Foreground image shows full content without cropping */}
-            <img
-              src={heroImage}
-              alt="নজরুল অলিম্পিয়াড"
-              className="relative z-10 w-full h-full object-contain"
-              loading="eager"
-            />
+          <div className="h-full w-full flex items-center justify-center text-slate-400">
+            <p>No hero image available</p>
           </div>
         )}
       </section>
+
+      {/* Hero Slider Section */}
+      {sliderImages.length >= 3 && (
+        <section className="relative">
+          <div
+            className="overflow-hidden"
+            onTouchStart={(e) => {
+              setTouchEnd(null);
+              setTouchStart(e.targetTouches[0].clientX);
+            }}
+            onTouchMove={(e) => {
+              setTouchEnd(e.targetTouches[0].clientX);
+            }}
+            onTouchEnd={() => {
+              if (!touchStart || !touchEnd || isTransitioning) return;
+              const distance = touchStart - touchEnd;
+              if (distance > 50) {
+                setIsTransitioning(true);
+                setCurrentIndex((prev) => (prev + 1) % sliderImages.length);
+                setTimeout(() => setIsTransitioning(false), 500);
+              } else if (distance < -50) {
+                setIsTransitioning(true);
+                setCurrentIndex((prev) => (prev - 1 + sliderImages.length) % sliderImages.length);
+                setTimeout(() => setIsTransitioning(false), 500);
+              }
+            }}
+          >
+            <div className="flex gap-[2%]">
+              {sliderImages.map((item, index) => {
+                const position = (index - currentIndex + sliderImages.length) % sliderImages.length;
+                let widthClass = 'w-[0%]';
+                if (position === 0 || position === 1) widthClass = 'w-[40%]';
+                else if (position === 2) widthClass = 'w-[18%]';
+
+                if (position > 2) return null;
+
+                return (
+                  <div
+                    key={item.id}
+                    style={{ order: position }}
+                    className={`${widthClass} flex-shrink-0 aspect-[18/9] rounded-lg overflow-hidden bg-slate-200 shadow-md border border-slate-200 transition-all duration-500 ease-in-out`}
+                  >
+                    {item.link ? (
+                      <NavLink to={item.link} className="block w-full h-full">
+                        <img
+                          src={item.image}
+                          alt={item.title || ''}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </NavLink>
+                    ) : (
+                      <img
+                        src={item.image}
+                        alt={item.title || ''}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Navigation arrows */}
+          <button
+            onClick={() => {
+              if (!isTransitioning && sliderImages.length > 0) {
+                setIsTransitioning(true);
+                setCurrentIndex((prev) => (prev - 1 + sliderImages.length) % sliderImages.length);
+                setTimeout(() => setIsTransitioning(false), 500);
+              }
+            }}
+            disabled={isTransitioning}
+            className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white text-slate-800 p-3 rounded-full shadow-lg disabled:opacity-50"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button
+            onClick={() => {
+              if (!isTransitioning && sliderImages.length > 0) {
+                setIsTransitioning(true);
+                setCurrentIndex((prev) => (prev + 1) % sliderImages.length);
+                setTimeout(() => setIsTransitioning(false), 500);
+              }
+            }}
+            disabled={isTransitioning}
+            className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white text-slate-800 p-3 rounded-full shadow-lg disabled:opacity-50"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          <div className="text-center mt-3">
+            <span className="text-slate-400 text-xs">← সোয়াইপ করুন →</span>
+          </div>
+        </section>
+      )}
 
       {/* Mission & Vision Section */}
       <section className="grid md:grid-cols-2 gap-4 sm:gap-6">
@@ -283,7 +269,7 @@ export default function Home() {
           <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-2 sm:mb-3">আমাদের লক্ষ্য</h3>
           <p className="text-slate-600 leading-relaxed text-sm sm:text-base">
             শিশু-কিশোরদের ভিতরে সৃজনশীলতা, নৈতিকতা ও নেতৃত্ব গুণের বিকাশ ঘটানো এবং 
-            তাদেরকে সামাজিকভাবে দায়িত্বশীল নাগরিক হিসেবে গড়ে তোলা।
+            তাদেরকে সামাজিকভাবে দায়িত্বশীল নাগরিক হিসেবে গড়ে তোলা।
           </p>
         </div>
 
@@ -297,14 +283,13 @@ export default function Home() {
           <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-2 sm:mb-3">আমাদের দৃষ্টি</h3>
           <p className="text-slate-600 leading-relaxed text-sm sm:text-base">
             একটি আদর্শ সমাজ যেখানে প্রতিটি শিশু আত্মবিশ্বাসী, সৃজনশীল ও মানবিক গুণাবলী 
-            সম্পন্ন হিসেবে বেড়ে উঠবে এবং দেশ ও জাতির উন্নয়নে ভূমিকা রাখবে।
+            সম্পন্ন হিসেবে বেড়ে উঠবে এবং দেশ ও জাতির উন্নয়নে ভূমিকা রাখবে।
           </p>
         </div>
       </section>
 
-      {/* Countdown and Stats Section - Centered Content */}
+      {/* Countdown and Stats Section */}
       <section className="grid lg:grid-cols-2 gap-4 sm:gap-6">
-        {/* Countdown Section - Centered */}
         <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
           <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-4 sm:mb-6 text-center">
             {nextEventTitle || 'আসন্ন ইভেন্ট'}
@@ -318,7 +303,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Achievement Section - Centered */}
         <div className="bg-slate-50 rounded-lg sm:rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
           <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-4 sm:mb-6 text-center">আমাদের অর্জন</h3>
           <div className="grid grid-cols-2 gap-3 sm:gap-4">

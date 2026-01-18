@@ -16,6 +16,7 @@ import MediaManager from './pages/MediaManager'
 import Login from './pages/Login'
 import ResetPassword from './pages/ResetPassword'
 import ProtectedRoute from './components/ProtectedRoute'
+import BlogDetail from './components/blogDetail'
 
 function App() {
   const location = useLocation()
@@ -35,6 +36,7 @@ function App() {
           <Route path="/media" element={<Media />} />
           <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/blog/:id" element={<BlogDetail />} />
           <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/members" element={<ProtectedRoute requireAdmin={true}><MembersAdmin /></ProtectedRoute>} />
           <Route path="/admin/media" element={<ProtectedRoute requireAdmin={true}><MediaManager /></ProtectedRoute>} />

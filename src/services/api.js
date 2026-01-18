@@ -16,6 +16,10 @@ function tableForTab(tab) {
       return 'memberships'
     case 'memberships':
       return 'memberships'
+    case 'main_hero':
+      return 'main_hero'
+    case 'hero_slider':
+      return 'hero_slider'
     default:
       return null
   }
@@ -60,6 +64,15 @@ export async function getById(tab, id) {
   const { data, error } = await supabase.from(table).select('*').eq('id', id).maybeSingle()
   if (error) throw error
   return data || null
+}
+
+export async function updateItem(tab, id, payload) {
+  ensureSupabase()
+  const table = tableForTab(tab)
+  if (!table) throw new Error('Invalid tab')
+  const { data, error } = await supabase.from(table).update(payload).eq('id', id).select()
+  if (error) throw error
+  return Array.isArray(data) ? data[0] : data
 }
 
 export const apiBase = 'supabase'

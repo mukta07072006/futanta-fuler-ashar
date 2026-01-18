@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { createItem, getList, deleteItem as apiDelete } from '../services/api'
+import { createItem, getList, deleteItem as apiDelete, updateItem } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { Navigate, Link } from 'react-router-dom'
 import { supabase } from '../supabase/client'
@@ -13,10 +13,13 @@ import {
   FaCalendarAlt, 
   FaExclamationTriangle, 
   FaExclamationCircle,
-  FaCode
+  FaCode,
+  FaImage
 } from 'react-icons/fa';
 
 const tabs = [
+  { key: 'main_hero', label: 'মেইন হিরো', icon: '🖼️' },
+  { key: 'hero_slider', label: 'হিরো স্লাইডার', icon: '🎬' },
   { key: 'library', label: 'লাইব্রেরি', icon: '📚' },
   { key: 'notices', label: 'নোটিশ', icon: '📢' },
   { key: 'events', label: 'ইভেন্ট', icon: '🎉' },
@@ -25,12 +28,19 @@ const tabs = [
 
 export default function AdminDashboard() {
   const { user, isAdmin, loading: authLoading } = useAuth()
-  const [active, setActive] = useState('library')
+  const [active, setActive] = useState('main_hero')
   const [title, setTitle] = useState('')
+  const [subtitle, setSubtitle] = useState('')
   const [category, setCategory] = useState('')
   const [description, setDescription] = useState('')
   const [extra, setExtra] = useState('')
   const [thumbnail, setThumbnail] = useState('')
+  const [ctaText, setCtaText] = useState('')
+  const [ctaLink, setCtaLink] = useState('')
+  const [displayOrder, setDisplayOrder] = useState(0)
+  const [isActive, setIsActive] = useState(true)
+  const [link, setLink] = useState('')
+  const [editingId, setEditingId] = useState(null)
   const [status, setStatus] = useState('')
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
@@ -48,7 +58,7 @@ export default function AdminDashboard() {
       setUploading(true)
       const fileExt = file.name.split('.').pop()
       const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
-      const bucketName = `${active}-images`
+      const bucketName = active.replace(/_/g, '-') + '-images'
       
       const { error } = await supabase.storage
         .from(bucketName)
@@ -76,13 +86,12 @@ export default function AdminDashboard() {
     const file = event.target.files[0]
     if (!file) return
     
-    // Check file type and size
     if (!file.type.startsWith('image/')) {
       setStatus('শুধুমাত্র ইমেজ ফাইল আপলোড করুন')
       return
     }
     
-    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+    if (file.size > 5 * 1024 * 1024) {
       setStatus('ফাইলের সাইজ 5MB এর কম হতে হবে')
       return
     }
@@ -94,10 +103,12 @@ export default function AdminDashboard() {
     }
   }
 
-  // Note: Avoid early returns before hooks to keep hook order stable
-
   const collectionForTab = (tab) => {
     switch (tab) {
+      case 'main_hero':
+        return 'main_hero'
+      case 'hero_slider':
+        return 'hero_slider'
       case 'library':
         return 'library'
       case 'notices':
@@ -127,8 +138,12 @@ export default function AdminDashboard() {
 
   const getThumbnailPlaceholder = () => {
     switch (active) {
+      case 'main_hero':
+        return 'মেইন হিরো ইমেজ URL'
+      case 'hero_slider':
+        return 'স্লাইডার ইমেজ URL'
       case 'library':
-        return 'বইয়ের থাম্বনেইল URL'
+        return 'বইয়ের থাম্বনেইল URL'
       case 'blogs':
         return 'ব্লগ ছবি URL'
       case 'events':
@@ -138,7 +153,40 @@ export default function AdminDashboard() {
     }
   }
 
-  // Load admin profile details by UID
+  // Reset form fields
+  const resetForm = () => {
+    setTitle('')
+    setSubtitle('')
+    setCategory('')
+    setDescription('')
+    setExtra('')
+    setThumbnail('')
+    setCtaText('')
+    setCtaLink('')
+    setDisplayOrder(0)
+    setIsActive(true)
+    setLink('')
+    setEditingId(null)
+  }
+
+  // Load item for editing
+  const handleEdit = (item) => {
+    setEditingId(item.id)
+    setTitle(item.title || '')
+    setSubtitle(item.subtitle || '')
+    setThumbnail(item.image || item.thumbnail || '')
+    setCtaText(item.cta_text || '')
+    setCtaLink(item.cta_link || '')
+    setDisplayOrder(item.display_order || 0)
+    setIsActive(item.is_active !== false)
+    setLink(item.link || '')
+    setCategory(item.category || item.type || '')
+    setDescription(item.description || item.content || '')
+    setExtra(item.tags || item.date || item.url || item.downloadUrl || '')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Load admin profile details
   useEffect(() => {
     const loadProfile = async () => {
       if (!user) return
@@ -167,23 +215,22 @@ export default function AdminDashboard() {
 
   // Disable Save based on active tab's required fields
   const isSaveDisabled = () => {
+    if (active === 'main_hero' || active === 'hero_slider') {
+      return !thumbnail.trim()
+    }
+    
     const t = title.trim()
     if (!t) return true
-    if (active === 'library') return !extra.trim() // Download URL required
-    if (active === 'events' || active === 'notices') return !extra.trim() // Date required
-    if (active === 'blogs') return !description.trim() // Content required
+    if (active === 'library') return !extra.trim()
+    if (active === 'events' || active === 'notices') return !extra.trim()
+    if (active === 'blogs') return !description.trim()
     return false
   }
 
   const handleSave = async () => {
     const col = collectionForTab(active)
     if (!col) {
-      setStatus('এই ট্যাবটি এখানে কনফিগারযোগ্য৤ নয়। নয়।')
-      return
-    }
-    
-    if (!title.trim()) {
-      setStatus('শিরোনাম প্রয়োজন।')
+      setStatus('এই ট্যাবটি এখানে কনফিগারযোগ্য নয়।')
       return
     }
 
@@ -191,11 +238,39 @@ export default function AdminDashboard() {
     setStatus('সংরক্ষণ করা হচ্ছে...')
     
     try {
-      let payload = { title: title.trim() }
+      let payload = {}
       
-      if (active === 'library') {
+      if (active === 'main_hero') {
+        if (!thumbnail.trim()) {
+          setStatus('ইমেজ প্রয়োজন।')
+          setSaving(false)
+          return
+        }
+        payload = {
+          image: thumbnail.trim(),
+          title: title.trim() || null,
+          subtitle: subtitle.trim() || null,
+          cta_text: ctaText.trim() || null,
+          cta_link: ctaLink.trim() || null,
+          is_active: isActive,
+          display_order: displayOrder || 0
+        }
+      } else if (active === 'hero_slider') {
+        if (!thumbnail.trim()) {
+          setStatus('ইমেজ প্রয়োজন।')
+          setSaving(false)
+          return
+        }
+        payload = {
+          image: thumbnail.trim(),
+          title: title.trim() || null,
+          link: link.trim() || null,
+          is_active: isActive,
+          display_order: displayOrder || 0
+        }
+      } else if (active === 'library') {
         payload = { 
-          ...payload, 
+          title: title.trim(),
           description: description.trim(), 
           type: category.trim(), 
           url: extra.trim(),
@@ -204,7 +279,7 @@ export default function AdminDashboard() {
         }
       } else if (active === 'notices') {
         payload = { 
-          ...payload, 
+          title: title.trim(),
           description: description.trim(), 
           type: category.trim(), 
           date: extra.trim(),
@@ -212,7 +287,7 @@ export default function AdminDashboard() {
         }
       } else if (active === 'events') {
         payload = { 
-          ...payload, 
+          title: title.trim(),
           description: description.trim(), 
           type: category.trim(), 
           date: extra.trim(),
@@ -220,7 +295,7 @@ export default function AdminDashboard() {
         }
       } else if (active === 'blogs') {
         payload = { 
-          ...payload, 
+          title: title.trim(),
           content: description.trim(), 
           category: category.trim(),
           tags: extra.trim(),
@@ -228,13 +303,15 @@ export default function AdminDashboard() {
         }
       }
 
-      await createItem(active, payload)
-      setStatus('সফলভাবে সংরক্ষণ করা হয়েছে!')
-      setTitle('')
-      setCategory('')
-      setDescription('')
-      setExtra('')
-      setThumbnail('')
+      if (editingId) {
+        await updateItem(active, editingId, payload)
+        setStatus('সফলভাবে আপডেট করা হয়েছে!')
+      } else {
+        await createItem(active, payload)
+        setStatus('সফলভাবে সংরক্ষণ করা হয়েছে!')
+      }
+      
+      resetForm()
       await refreshList()
     } catch (e) {
       console.error('Admin save failed', e)
@@ -253,7 +330,6 @@ export default function AdminDashboard() {
     setLoading(true)
     try {
       const list = await getList(active)
-      // Normalize id field
       setItems(list.map(it => ({ id: it._id || it.id, ...it })))
     } catch (e) {
       console.error('Admin list load failed', e)
@@ -282,10 +358,11 @@ export default function AdminDashboard() {
 
   // Load list when tab changes
   useEffect(() => {
+    resetForm()
     refreshList()
   }, [active])
 
-  // Normalize role for consistent display
+  // Role info
   const roleRaw = (profile?.['Role'] ?? '').toString()
   const role = roleRaw.trim().toLowerCase()
   const roleLabel = role === 'developer' ? 'ডেভেলপার' : role === 'admin' ? 'অ্যাডমিন' : role === 'moderator' ? 'মডারেটর' : 'ব্যবহারকারী'
@@ -299,7 +376,6 @@ export default function AdminDashboard() {
   const roleIconColor = role === 'developer' ? 'text-purple-600' : role === 'admin' ? 'text-red-600' : role === 'moderator' ? 'text-blue-600' : 'text-green-600'
   const Initial = ((profile?.['Name'] || user?.email || '?').charAt(0) || '?').toUpperCase()
 
-  // Redirect if not authenticated or not admin (placed after hooks to maintain order)
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -337,7 +413,6 @@ export default function AdminDashboard() {
           </div>
           {profile ? (
             <div className="space-y-6">
-              {/* Header with avatar and role badge */}
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${role === 'developer' ? 'bg-purple-100 text-purple-700' : role === 'admin' ? 'bg-red-100 text-red-700' : role === 'moderator' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>{Initial}</div>
@@ -359,10 +434,6 @@ export default function AdminDashboard() {
                   <span className="font-semibold text-sm">{roleLabel}</span>
                 </div>
               </div>
-
-              {/* Information Grid */}
-              <div className="grid sm:grid-cols-2 gap-6">
-              </div>
             </div>
           ) : (
             <div className="text-center py-8 text-slate-600">
@@ -377,11 +448,13 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
+
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">ADMIN DASHBOARD</h1>
           <p className="text-gray-600">কন্টেন্ট ম্যানেজমেন্ট সিস্টেম</p>
         </div>
+
         <div className="flex justify-center mb-6">
           <Link
             to="/admin/media"
@@ -391,6 +464,7 @@ export default function AdminDashboard() {
             <span>মিডিয়া ম্যানেজার</span>
           </Link>
         </div>
+
         {/* Tab Navigation */}
         <div className="flex gap-2 flex-wrap justify-center mb-8">
           {tabs.map(t => (
@@ -411,53 +485,207 @@ export default function AdminDashboard() {
 
         {/* Content Form */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-          <div className="flex items-center gap-3 mb-6">
-            <div className={`w-3 h-8 rounded-full ${
-              active === 'library' ? 'bg-blue-500' :
-              active === 'notices' ? 'bg-green-500' :
-              active === 'events' ? 'bg-purple-500' :
-              active === 'blogs' ? 'bg-pink-500' : 'bg-orange-500'
-            }`}></div>
-            <h2 className="text-xl font-semibold text-gray-800">
-              {tabs.find(t => t.key === active)?.label} যোগ করুন
-            </h2>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className={`w-3 h-8 rounded-full ${
+                active === 'main_hero' ? 'bg-indigo-500' :
+                active === 'hero_slider' ? 'bg-cyan-500' :
+                active === 'library' ? 'bg-blue-500' :
+                active === 'notices' ? 'bg-green-500' :
+                active === 'events' ? 'bg-purple-500' :
+                active === 'blogs' ? 'bg-pink-500' : 'bg-orange-500'
+              }`}></div>
+              <h2 className="text-xl font-semibold text-gray-800">
+                {editingId ? 'আপডেট করুন' : 'যোগ করুন'} - {tabs.find(t => t.key === active)?.label}
+              </h2>
+            </div>
+            {editingId && (
+              <button
+                onClick={resetForm}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm"
+              >
+                বাতিল করুন
+              </button>
+            )}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {/* Image Field (Required for hero sections) */}
+            {(active === 'main_hero' || active === 'hero_slider') && (
+              <div className="space-y-2 md:col-span-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  ইমেজ * (প্রয়োজনীয়)
+                </label>
+                
+                <div className="mb-2">
+                  <label className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer transition-all">
+                    <span>📁</span>
+                    <span>ছবি আপলোড করুন</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  {uploading && (
+                    <div className="inline-flex items-center gap-2 ml-4 text-sm text-gray-600">
+                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      আপলোড হচ্ছে...
+                    </div>
+                  )}
+                </div>
+                
+                <input
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                  type="url"
+                  placeholder={getThumbnailPlaceholder()}
+                  value={thumbnail}
+                  onChange={(e) => setThumbnail(e.target.value)}
+                  required
+                />
+                
+                {thumbnail && (
+                  <div className="mt-2">
+                    <img 
+                      src={thumbnail} 
+                      alt="Preview" 
+                      className="w-full max-w-md h-48 object-cover rounded-lg border border-gray-300"
+                      onError={(e) => e.target.style.display = 'none'}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Title */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                শিরোনাম *
-              </label>
-              <input
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-                placeholder="শিরোনাম লিখুন"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
-            </div>
+            {active !== 'main_hero' && active !== 'hero_slider' && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  শিরোনাম *
+                </label>
+                <input
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                  placeholder="শিরোনাম লিখুন"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                />
+              </div>
+            )}
 
-            {/* Category/Type */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                {active === 'blogs' ? 'বিভাগ' : 'ধরন'}
-              </label>
-              <input
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-                placeholder={active === 'blogs' ? 'বিভাগ' : 'ধরন'}
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              />
-            </div>
+            {/* Main Hero specific fields */}
+            {active === 'main_hero' && (
+              <>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">শিরোনাম</label>
+                  <input
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                    placeholder="শিরোনাম"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">সাবটাইটেল</label>
+                  <input
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                    placeholder="সাবটাইটেল"
+                    value={subtitle}
+                    onChange={(e) => setSubtitle(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">CTA টেক্সট</label>
+                  <input
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                    placeholder="যেমন: এখনই যোগ দিন"
+                    value={ctaText}
+                    onChange={(e) => setCtaText(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">CTA লিংক</label>
+                  <input
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                    type="url"
+                    placeholder="/membership"
+                    value={ctaLink}
+                    onChange={(e) => setCtaLink(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
 
-            {/* Thumbnail Field */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                থাম্বনেইল
-              </label>
+            {/* Hero Slider specific fields */}
+            {active === 'hero_slider' && (
+              <>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">শিরোনাম</label>
+                  <input
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                    placeholder="শিরোনাম (ঐচ্ছিক)"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">লিংক</label>
+                  <input
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                    type="url"
+                    placeholder="/blog/123 (ঐচ্ছিক)"
+                    value={link}
+                    onChange={(e) => setLink(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Display Order and Active Status for hero sections */}
+            {(active === 'main_hero' || active === 'hero_slider') && (
+              <>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">ডিসপ্লে অর্ডার</label>
+                  <input
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                    type="number"
+                    placeholder="0"
+                    value={displayOrder}
+                    onChange={(e) => setDisplayOrder(parseInt(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="space-y-2 flex items-end">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isActive}
+                      onChange={(e) => setIsActive(e.target.checked)}
+                      className="w-5 h-5 text-orange-600 rounded focus:ring-2 focus:ring-orange-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">সক্রিয়</span>
+                  </label>
+                </div>
+              </>
+            )}
+
+            {/* Other tab fields */}
+            {active !== 'main_hero' && active !== 'hero_slider' && (
+              <>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    {active === 'blogs' ? 'বিভাগ' : 'ধরন'}
+                  </label>
+                  <input
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                    placeholder={active === 'blogs' ?'বিভাগ' : 'ধরন'}
+value={category}
+onChange={(e) => setCategory(e.target.value)}
+/>
+</div>
+<div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">থাম্বনেইল</label>
               
-              {/* File Upload Button */}
               <div className="mb-2">
                 <label className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer transition-all">
                   <span>📁</span>
@@ -477,7 +705,6 @@ export default function AdminDashboard() {
                 )}
               </div>
               
-              {/* URL Input */}
               <input
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
                 type="url"
@@ -486,7 +713,6 @@ export default function AdminDashboard() {
                 onChange={(e) => setThumbnail(e.target.value)}
               />
               
-              {/* Preview */}
               {thumbnail && (
                 <div className="mt-2">
                   <img 
@@ -499,7 +725,6 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            {/* Extra Field */}
             <div className="space-y-2 md:col-span-2 lg:col-span-1">
               <label className="block text-sm font-medium text-gray-700">
                 {active === 'library' ? 'লিংক' : 
@@ -513,12 +738,8 @@ export default function AdminDashboard() {
                 value={extra}
                 onChange={(e) => setExtra(e.target.value)}
               />
-              {active === 'library' && extra && !/^https?:\/\//.test(extra) && (
-                <p className="text-xs text-red-600">দয়া করে একটি বৈধ URL দিন</p>
-              )}
             </div>
 
-            {/* Description/Content */}
             <div className="space-y-2 md:col-span-3">
               <label className="block text-sm font-medium text-gray-700">
                 {active === 'blogs' ? 'বিষয়বস্তু' : 'বিবরণ'}
@@ -531,141 +752,172 @@ export default function AdminDashboard() {
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
+          </>
+        )}
 
-            {/* Submit Button */}
-            <div className="md:col-span-3">
-              <button 
-                onClick={handleSave}
-                disabled={saving || isSaveDisabled()}
-                className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
-              >
-                {saving ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    সংরক্ষণ করা হচ্ছে...
-                  </>
-                ) : (
-                  'সংরক্ষণ করুন'
-                )}
-              </button>
-            </div>
-
-            {/* Status Message */}
-            {status && (
-              <div className="md:col-span-3">
-                <div className={`p-3 rounded-xl text-sm font-medium ${
-                  status.includes('সফল') ? 'bg-green-100 text-green-800' :
-                  status.includes('ব্যর্থ') ? 'bg-red-100 text-red-800' :
-                  'bg-blue-100 text-blue-800'
-                }`}>
-                  {status}
-                </div>
-              </div>
+        {/* Submit Button */}
+        <div className="md:col-span-3">
+          <button 
+            onClick={handleSave}
+            disabled={saving || isSaveDisabled()}
+            className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+          >
+            {saving ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                {editingId ? 'আপডেট হচ্ছে...' : 'সংরক্ষণ করা হচ্ছে...'}
+              </>
+            ) : (
+              editingId ? 'আপডেট করুন' : 'সংরক্ষণ করুন'
             )}
-          </div>
+          </button>
         </div>
 
-        {/* Existing Items List */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-3 h-8 rounded-full bg-gray-500"></div>
-            <h2 className="text-xl font-semibold text-gray-800">
-              বিদ্যমান {tabs.find(t => t.key === active)?.label}
-            </h2>
-            <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">
-              {items.length} টি
-            </span>
+        {/* Status Message */}
+        {status && (
+          <div className="md:col-span-3">
+            <div className={`p-3 rounded-xl text-sm font-medium ${
+              status.includes('সফল') || status.includes('আপডেট') ? 'bg-green-100 text-green-800' :
+              status.includes('ব্যর্থ') ? 'bg-red-100 text-red-800' :
+              'bg-blue-100 text-blue-800'
+            }`}>
+              {status}
+            </div>
           </div>
-
-          {loading && (
-            <div className="text-center py-8">
-              <div className="w-8 h-8 border-2 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">লোড হচ্ছে...</p>
-            </div>
-          )}
-
-          {!loading && !items.length && (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">📭</div>
-              <p className="text-gray-600 text-lg">কোনো আইটেম পাওয়া যায়নি</p>
-              <p className="text-gray-400 text-sm">উপরে ফর্সফ টি ব্যবহার করে নতুন আইটেম যোগ করুন</p>
-            </div>
-          )}
-
-          {!loading && items.length > 0 && (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {items.map((it) => (
-                <div key={it.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:border-orange-300 transition-all">
-                  {/* Thumbnail Preview */}
-                  {it.thumbnail && (
-                    <div className="mb-3">
-                      <img 
-                        src={it.thumbnail} 
-                        alt={it.title}
-                        className="w-full h-32 object-cover rounded-lg"
-                        onError={(e) => e.target.style.display = 'none'}
-                      />
-                    </div>
-                  )}
-                  
-                  <div className="space-y-2">
-                    <h3 className="font-semibold text-gray-800 text-lg line-clamp-2">
-                      {it.title || it.name}
-                    </h3>
-                    
-                    {(it.category || it.type) && (
-                      <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs inline-block">
-                        {it.category || it.type}
-                      </div>
-                    )}
-
-                    {(it.content || it.description) && (
-                      <p className="text-gray-600 text-sm line-clamp-2">
-                        {it.content || it.description}
-                      </p>
-                    )}
-
-                    {/* Additional info based on type */}
-                    {it.date && (
-                      <div className="flex items-center gap-1 text-sm text-gray-500">
-                        <span>📅</span>
-                        <span>{it.date}</span>
-                      </div>
-                    )}
-
-                    {it.url && (
-                      <div className="flex items-center gap-1 text-sm text-gray-500">
-                        <span>🔗</span>
-                        <a href={it.url} target="_blank" rel="noopener noreferrer" className="truncate text-orange-700 hover:underline">
-                          {it.url}
-                        </a>
-                      </div>
-                    )}
-
-                    {it.tags && (
-                      <div className="flex flex-wrap gap-2">
-                        {it.tags.split(',').map(tag => (
-                          <span key={tag.trim()} className="bg-orange-100 text-orange-700 px-2 py-1 rounded-full text-xs">{tag.trim()}</span>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="pt-2 border-t border-gray-200">
-                      <button 
-                        onClick={() => removeItem(it.id)}
-                        className="w-full bg-red-100 hover:bg-red-200 text-red-700 py-2 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2"
-                      >
-                        <span>🗑️</span>
-                        মুছুন
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
+
+    {/* Existing Items List */}
+    <div className="bg-white rounded-2xl shadow-lg p-6">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-3 h-8 rounded-full bg-gray-500"></div>
+        <h2 className="text-xl font-semibold text-gray-800">
+          বিদ্যমান {tabs.find(t => t.key === active)?.label}
+        </h2>
+        <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">
+          {items.length} টি
+        </span>
+      </div>
+
+      {loading && (
+        <div className="text-center py-8">
+          <div className="w-8 h-8 border-2 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">লোড হচ্ছে...</p>
+        </div>
+      )}
+
+      {!loading && !items.length && (
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4">📭</div>
+          <p className="text-gray-600 text-lg">কোনো আইটেম পাওয়া যায়নি</p>
+          <p className="text-gray-400 text-sm">উপরে ফর্ম টি ব্যবহার করে নতুন আইটেম যোগ করুন</p>
+        </div>
+      )}
+
+      {!loading && items.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {items.map((it) => (
+            <div key={it.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:border-orange-300 transition-all">
+              {/* Image Preview */}
+              {(it.thumbnail || it.image) && (
+                <div className="mb-3">
+                  <img 
+                    src={it.thumbnail || it.image} 
+                    alt={it.title}
+                    className="w-full h-32 object-cover rounded-lg"
+                    onError={(e) => e.target.style.display = 'none'}
+                  />
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                {(it.title || it.name) && (
+                  <h3 className="font-semibold text-gray-800 text-lg line-clamp-2">
+                    {it.title || it.name}
+                  </h3>
+                )}
+                
+                {it.subtitle && (
+                  <p className="text-sm text-gray-600">{it.subtitle}</p>
+                )}
+
+                {(it.category || it.type) && (
+                  <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs inline-block">
+                    {it.category || it.type}
+                  </div>
+                )}
+
+                {it.is_active === false && (
+                  <div className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs inline-block">
+                    নিষ্ক্রিয়
+                  </div>
+                )}
+
+                {it.display_order !== undefined && (
+                  <div className="text-xs text-gray-500">অর্ডার: {it.display_order}</div>
+                )}
+
+                {(it.content || it.description) && (
+                  <p className="text-gray-600 text-sm line-clamp-2">
+                    {it.content || it.description}
+                  </p>
+                )}
+
+                {it.date && (
+                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                    <span>📅</span>
+                    <span>{it.date}</span>
+                  </div>
+                )}
+
+                {it.url && (
+                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                    <span>🔗</span>
+                    <a href={it.url} target="_blank" rel="noopener noreferrer" className="truncate text-orange-600 hover:underline">
+                      {it.url}
+                    </a>
+                  </div>
+                )}
+
+                {it.link && (
+                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                    <span>🔗</span>
+                    <span className="truncate">{it.link}</span>
+                  </div>
+                )}
+
+                {it.tags && (
+                  <div className="flex flex-wrap gap-2">
+                    {it.tags.split(',').map(tag => (
+                      <span key={tag.trim()} className="bg-orange-100 text-orange-700 px-2 py-1 rounded-full text-xs">{tag.trim()}</span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="pt-2 border-t border-gray-200 flex gap-2">
+                  <button 
+                    onClick={() => handleEdit(it)}
+                    className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 py-2 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>✏️</span>
+                    সম্পাদনা
+                  </button>
+                  <button 
+                    onClick={() => removeItem(it.id)}
+                    className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 py-2 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>🗑️</span>
+                    মুছুন
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+</div>
   )
 }
